@@ -1,0 +1,38 @@
+---
+description: 全局安全规范与红线，包含凭证安全、网关路由、容器化、日志脱敏与 SQL 注入防范。
+globs: ["*"]
+alwaysApply: true
+---
+
+# 安全红线与云原生（GCP/DevOps）工程标准
+
+## 1. 凭证绝不落地 (Zero-Trust Credentials)
+- **绝对禁止**在任何代码、配置文件（YAML/JSON）、测试用例或注释中硬编码 API Key、Token、JWT Secret、数据库密码、GCP 服务账号密钥或私钥。
+- 必须通过本地环境变量或容器挂载注入运行时（例如 Go 的 `os.Getenv`，Node 的 `process.env`，Java 的 `System.getenv`）。
+- 如果需要新建本地配置文件，必须自动在 `.gitignore` 中将其排除，并提供相应的 `.env.example` 模板。
+
+## 2. 统一 API 网关与路由规范 (Kong Gateway)
+- 任何新暴露的内部微服务或 API 接口，其路由设计必须符合 RESTful 或 gRPC 规范，且优先考虑在网关层（Kong）进行统一的权限校验与前置限流（Rate Limiting）。
+- 严禁在业务代码中重复编写基础限流与跨域（CORS）逻辑。
+
+## 3. 云原生与容器化标准 (GCP / K8s / Ubuntu)
+- **多环境隔离**：任何配置变更必须明确区分 `Development`、`Staging` 和 `Production`。
+- **轻量与安全镜像**：编写 `Dockerfile` 时，后端服务必须使用多阶段构建（Multi-stage Build），最终运行镜像优先选择 `alpine` 或 `distroless`，禁止使用包含大量漏洞的完整版系统镜像。
+- **Spot 实例兼容**：在针对 GCP（如 E2 系列）或 K8s 编写部署脚本时，必须考虑到 Spot 实例（竞价实例）的突发中断特性。无状态服务必须配置优雅停机（Graceful Shutdown），确保收到 `SIGTERM` 信号后，在 30 秒内处理完存量请求并安全退出。
+
+## 4. 敏感日志与信息泄露阻断 (Log Security & PII Protection)
+- **绝对禁止**在生产或测试环境日志中打印未经脱敏的 PII（个人身份信息），包括但不限于密码、银行卡号、手机号、身份证号、邮箱地址等。
+- 打印 SQL 调试日志或外部 API 请求报文时，必须经过敏感字段脱敏或在生产环境默认关闭 DEBUG 级别日志。
+
+## 5. 数据库安全与 SQL 注入防范 (SQL Injection Prevention)
+- 所有涉及数据库查询的操作，不论使用原生 SQL 还是 ORM 框架（如 Go 的 GORM、Java 的 MyBatis/JPA、Node 的 Prisma/Sequelize），必须采用**参数化查询（Parameterized Queries）**或预编译语句。
+- 严禁通过简单的字符串拼接构建 SQL 执行语句。
+
+## 6. 依赖项管理与合规审计 (Dependency Security)
+- 引入第三方库时，必须锁定版本（使用 `go.sum`、`package-lock.json`、`pnpm-lock.yaml`、`pom.xml` 的具体版本号），禁止使用 `latest` 等模糊版本。
+- 严禁在未经评估前引入含有传染性开源协议（如 GPL 系列、AGPL）的依赖库到商业项目中。
+
+## 7. AI 及 MCP 插件使用红线 (AI & MCP Tooling Guardrails)
+- AI 智能体在使用 MCP 工具时，应严格遵循最小权限原则（Principle of Least Privilege）。
+- 严禁使用未经验证的第三方 MCP 服务直接读取或写入包含真实用户生产数据的数据库。
+- 在通过 Terminal MCP 执行命令时，严禁使用类似 `rm -rf /` 或不带限制的批量清空数据的操作，执行破坏性动作前必须进行双人确认（即输出设计，等待用户手动点击批准）。

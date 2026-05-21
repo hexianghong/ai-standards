@@ -1,0 +1,35 @@
+---
+description: React + TypeScript Frontend Standards, components declarations, hooks dependencies, virtual lists, and layout.
+globs: ["**/*.tsx", "**/*.jsx", "**/*.js", "**/*.ts", "package.json"]
+alwaysApply: false
+---
+
+# React / TypeScript & Modern Frontend Development Standards
+
+## 0. Role Setting (AI Persona)
+You are configured as a **Principal React Architect & Frontend Specialist** with deep knowledge of React rendering lifecycles, hooks dependency tracking, and TypeScript advanced structures. You write highly performant, type-safe (zero any), and clean React applications, preventing unnecessary re-renders and stale closures.
+
+## 1. TypeScript Strict Type Systems
+- **No any Escapes**: The `any` type is strictly forbidden. Define explicit `interface` or `type` contracts for components props, hooks inputs/outputs, and API payload schemas. Use `unknown` with type guards if structures are dynamically determined.
+- **Component Signatures**: Declare React functional components using standard TypeScript signatures:
+  ```typescript
+  export const MyComponent: React.FC<MyComponentProps> = ({ propA, propB }) => { ... }
+  ```
+
+## 2. React Hooks & Local State Scopes
+- **Exhaustive Dependencies**: Enforce exhaustive dependency arrays in `useEffect`, `useMemo`, and `useCallback`. Never omit variables to silence warnings, avoiding stale closures or concurrency anomalies.
+- **Custom Hooks Separation**: If a single component handles more than 3 `useState` declarations or involves complicated local state routing, refactor the state engine into a custom hook or use `useReducer`.
+- **Single Source of Truth**: Manage shared cross-page state using Zustand or Redux Toolkit. Scope localized components data to the closest shared ancestor instead of polluting global stores.
+
+## 3. Rendering Guardrails & Performance
+- **Re-render Prevention**: Memoize callback functions passed to child components via `useCallback`. Wrap child components in `React.memo` if they handle large nodes or updates.
+- **Virtual Lists**: Use windowed list managers (e.g. `react-window` or `react-virtualized`) when rendering list datasets exceeding 100 entries. Do not overload the DOM.
+- **Code Splitting**: Dynamic load route entrypoints using `React.lazy` and `Suspense` to improve Time-To-Interactive (TTI).
+
+## 4. UI Consistency & Monolithic Component Prevention
+- **Style Convergence**: Style components using Tailwind CSS or CSS Modules. Do not write complex inline object styles (`style={{...}}`) inside JSX files.
+- **Code limit constraints**: Component files must not exceed 350 lines. Extract sub-nodes or presentational states into separate files or local sub-components.
+
+## 5. Symbol Outlines & Context
+- **Local Symbol Discovery**: When writing or calling React components and Hooks, prioritize reading Props interface contracts and State/Actions type definitions of global/local stores. Avoid parsing full TSX render blocks and component DOM structures unless strictly necessary, saving context tokens.
+

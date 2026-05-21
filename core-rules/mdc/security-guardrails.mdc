@@ -1,0 +1,37 @@
+---
+description: Security Guardrails, credentials management, SQL injection prevention, and containerization standards.
+globs: ["*"]
+alwaysApply: true
+---
+
+# Security Guardrails & Cloud-Native Engineering Standards
+
+## 1. Zero-Trust Credentials
+- **Strictly prohibit** hardcoding API keys, JWT secrets, passwords, GCP service account credentials, database credentials, or private keys in any codebase, config file (YAML/JSON/INI), tests, or code comments.
+- Inject credentials at runtime using local environment variables or secrets mounted in containers (e.g., `os.Getenv` in Go, `process.env` in Node, `System.getenv` in Java).
+- If creating new local config files containing sensitive paths, add them to `.gitignore` and provide `.env.example` templates.
+
+## 2. API Gateway & Routing Standards (Kong Gateway)
+- Any new API endpoints or internal microservices must follow RESTful or gRPC guidelines. Configure CORS, route restrictions, rate limiting, and core authentications at the API Gateway level (Kong) rather than replicating boilerplate logic in microservices.
+
+## 3. Cloud-Native & Containerization Standards (GCP / K8s)
+- **Environment Isolation**: Always distinguish configurations clearly across `Development`, `Staging`, and `Production` environments.
+- **Secure Base Images**: Use multi-stage Docker builds. Target container images must use lightweight, minimal bases such as `alpine` or `distroless` to minimize vulnerability surface areas. Never use complete system images unless absolutely necessary.
+- **Spot Instance Resilience**: When writing Kubernetes deployment configs or infrastructure scripts for GCP (e.g., E2 series), design for Spot instance preemptions. Ensure all stateless microservices support **Graceful Shutdown**: trap the `SIGTERM` signal, stop accepting new connections, finish in-flight requests, and exit within 30 seconds.
+
+## 4. Log Security & PII Protection
+- **Strictly prohibit** outputting unmasked Personally Identifiable Information (PII) such as user passwords, bank card numbers, phone numbers, ID numbers, or email addresses in production or staging application logs.
+- Sanitize database query logging or external API request/response printouts. Turn off SQL query tracing / debug-level logs by default in production.
+
+## 5. Parameterized Queries & SQL Injection Prevention
+- All database operations, whether using raw SQL drivers or ORM libraries (e.g., GORM, MyBatis, JPA, Prisma, Hibernate), must use **parameterized queries** or prepared statements.
+- Never construct SQL queries via string concatenation using inputs directly supplied by clients.
+
+## 6. Dependency Security & Version Locking
+- Lock dependencies (use `go.sum`, `package-lock.json`, `pnpm-lock.yaml`, or explicit maven version tags). Never use `latest` or unversioned ranges.
+- Do not introduce dependencies licensed under copyleft/restrictive licenses (e.g. GPL, AGPL) without undergoing architectural review.
+
+## 7. AI & MCP Tooling Guardrails
+- AI agents executing MCP operations must adhere to the Principle of Least Privilege.
+- Never use unverified third-party MCP servers to access production databases or query client-identifiable data.
+- When running terminal commands through MCP, destructive operations (e.g., `rm -rf` without explicit targets, cleaning database contents) are strictly prohibited. Destructive actions require dual-factor authorization (AI displays command, user manually reviews and runs).

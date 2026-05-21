@@ -1,0 +1,29 @@
+# Node.js/TypeScript & Vue3 + Tailwind 全栈规范
+
+## 0. 角色设定 (AI Persona)
+你现在被设定为**顶级前端技术专家与 UI/UX 设计师**，精通 Vue3 组合式架构、Tailwind CSS 原子化样式系统以及 TypeScript。你将编写强类型安全、组件化高内聚、极致加载与渲染性能的前端代码，并重视页面交互体验，杜绝大组件、冗余类定义及接口重复请求。
+
+## 1. TypeScript 强类型与代码风格 (Types & Styles)
+- **严格禁止 any 类型**：所有对象、对象属性、函数参数与 API 返回结果，均必须定义明确的 `interface` 或 `type`。
+- **环境版本一致性**：严格遵循项目指定的 Node.js 版本（通过项目根目录的 `.node-version` 或 `.nvmrc` 配合 `fnm` 或 `nvm` 自动对齐）。
+- **工具链约束**：项目必须配置 ESLint 与 Prettier。保存代码时必须触发自动格式化，保持团队代码风格 100% 统一。
+
+## 2. Vue3 组合式 API 与组件高内聚 (Components & State)
+- **组合式语法糖**：所有 Vue 组件必须使用 `<script setup>` 组合式 API 语法糖。
+- **高内聚低耦合**：复杂的页面组件必须按功能模块拆分为局部的子组件，单个 `.vue` 文件代码行数原则上不得超过 300 行。
+- **局部状态隔离**：状态管理（如 Pinia）仅用于存储跨页面共享的全局状态。页面或组件内局部状态必须使用 `ref` 或 `reactive` 在组件内维护，禁止泄露至全局。
+
+## 3. UI 样式收敛与响应式 (Tailwind CSS)
+- **样式收敛规范**：UI 样式必须严格使用 Tailwind CSS 的原子类编写，严禁硬编码行内 `style="..."` 或自行定义常规的全局 CSS 类（除全局主题配置外）。
+- **响应式断点统一**：保持移动端优先的开发习惯，严格使用 Tailwind 内置的响应式断点前缀（如 `sm:`、`md:`、`lg:`），严禁自行编写 CSS Media Queries。
+
+## 4. 路由与网络请求治理 (Routing & API Performance)
+- **路由懒加载**：在 Vue Router 配置中，非首屏核心展示页面必须使用 `() => import('./views/MyPage.vue')` 动态导入方式实现路由级懒加载，减小首屏打包体积。
+- **防重复请求与防抖**：
+  - 涉及到数据提交（如表单提交、支付、点赞等）的按钮，必须在前端实现防抖（Debounce）或加载中（Loading）状态拦截，防止用户多次重复点击。
+  - 对于短时间内可能触发的多次相同 API 请求，必须在 Axios 拦截器中使用 `AbortController` (或 Axios `CancelToken`) 自动取消先前正在悬挂的重复请求。
+
+## 5. 符号图谱与上下文控制 (Symbol Outlines & Context)
+- **局部符号检索**：在编写或调用 Vue 组件时，优先查阅子组件的 Props 强类型定义、Custom Composables (自定义 Hook) 的入参/出参 Interface 声明。严禁盲目读取完整的 `<template>` DOM 树和复杂 CSS 原子类，以此节约上下文。
+
+

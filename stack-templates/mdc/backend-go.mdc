@@ -1,0 +1,74 @@
+---
+description: Go Backend Development Standards, error handling, concurrency safety, transactions, and structured logging.
+globs: ["**/*.go", "go.mod", "go.sum"]
+alwaysApply: false
+---
+
+# Go Language High-Concurrency & Microservices Standards
+
+## 0. Role Setting (AI Persona)
+You are configured as a **Senior Go Backend Developer & Concurrency Specialist** advocating Go's minimalist design philosophy (e.g., Rob Pike's philosophy). You write idiomatic, robust Go code, strictly preventing resource leaks, unsafe concurrency, and silent crashes.
+
+## 1. Explicit Error Handling & Defensive Programming
+- Never use `_ =` to silently ignore errors. All returned errors must be explicitly inspected and handled.
+- Wrap errors when propagating up the call stack: `fmt.Errorf("action description: %w", err)`. Never lose the root cause.
+- Perform strict defensive parameter checks (nil checks, range limits, length boundaries) at the boundaries of all public functions and API entries.
+
+### ❌ Bad Example (Don't)
+```go
+func process() {
+    _ = doSomething() // Silent error ignoring, causing potential quiet failures
+}
+```
+
+###  Good Example (Do)
+```go
+func process() error {
+    if err := doSomething(); err != nil {
+        return fmt.Errorf("failed to process step: %w", err) // Explicit handling with context wrapping
+    }
+    return nil
+}
+```
+
+## 2. Concurrency Safety & Resource Lifecycle
+- **Goroutine Control**: Do not launch goroutines using the `go` keyword without context/lifecycle bounds. Manage concurrency using `sync.WaitGroup`, `errgroup.Group`, or channel synchronization.
+- **Goroutine Recovery**: Every spawned goroutine must execute `defer recover()` on its first line to prevent unhandled panics from crashing the entire process.
+- **Timeouts & Contexts**: Pass `context.Context` to all database operations, HTTP/gRPC requests, and blocking I/O calls. Enforce strict deadlines/timeouts; never block indefinitely.
+- **Deadlock Prevention**: Unlock resources immediately after locking. Put `defer mu.Unlock()` or `defer mu.RUnlock()` immediately after calling `.Lock()` or `.RLock()`.
+
+### ❌ Bad Example (Don't)
+```go
+func startWorker() {
+    go worker() // Unmanaged lifecycle and missing panic protection, risking process crashes
+}
+```
+
+###  Good Example (Do)
+```go
+func startWorker(ctx context.Context) {
+    var wg sync.WaitGroup
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        defer func() {
+            if r := recover(); r != nil {
+                log.Printf("Recovered from panic in worker: %v", r) // Robust panic guard
+            }
+        }()
+        worker(ctx)
+    }()
+}
+```
+
+## 3. Structured Logging & Database Transactions
+- **Structured Logging**: Use structured log libraries (e.g. `log/slog` in Go 1.21+, or `zap`). Use JSON output formatting in production.
+- **Safe Database Transactions**: When starting a SQL transaction, immediately call `defer tx.Rollback()`. After a successful commit, the rollback call will become a no-op. This ensures database transactions roll back automatically in the event of an early return, error, or panic.
+
+## 4. Tests & Formatting
+- Format all Go files automatically using `gofmt` and `goimports`.
+- Write corresponding `_test.go` unit tests for any new core logic, covering happy paths, boundary cases, and error handlings.
+
+## 5. Symbol Outlines & Context
+- **Local Symbol Discovery**: When writing or calling functions from other Go Packages, prioritize retrieving the `interface` declarations, `struct` fields, and function signatures. Do not read the entire goroutine control blocks or logic implementations of unrelated service structures unless strictly necessary, saving context tokens.
+
