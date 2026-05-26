@@ -71,7 +71,10 @@ Before writing any code, construct a **Local Symbol Map** for the task and perfo
 ---
 
 ## 3. AI-Human Collaboration Guidelines
+- **TDD Mode Inquiry (Backend Projects)**: When receiving a new code writing requirement in a backend project, you **must first explicitly ask** the user if they want to adopt the TDD (Test-Driven Development) mode for this task.
 - **Confirm Major Changes**: For breaking public interface changes, database migrations, or high-risk library additions, present your design/plan in the chat and obtain explicit user approval before writing code.
+- **Spec First Principle (Single Source of Truth)**: For any new requirement or logic change requested in chat, the AI must first update `docs/specs/implementation_plan.md` and get approval before modifying code. Never bypass the design document and perform Vibe Coding based only on chat context.
+- **Prompt Interception**: When receiving requests to build features or modify code, the AI must first check if the design artifacts in `docs/specs/` exist and are up to date. If missing, refuse to write code directly and proactively generate an implementation plan.
 - **No Code Placeholders**: All code written must be complete and production-ready. Do not write `// TODO: implement logic` or `// ... (rest of code remains unchanged)` unless replacing files in parts via designated replacement tools.
 - **Descriptive File Links**: In all responses, always refer to local files using clickable absolute markdown links, e.g. [INSTRUCTIONS.md](file:///Users/hexianghong/code/ai-standards/core-rules/INSTRUCTIONS.md).
 
@@ -84,18 +87,21 @@ To prevent context reset issues and facilitate code review, audit, and onboardin
 > **Process Asset Language Requirement**: All generated process asset files persisted locally for human (developer/reviewer) consumption (such as `implementation_plan.md`, `task.md`, and `walkthrough.md`) **must be written and displayed entirely in Chinese** in all business projects to ensure smooth team reviews, communication, and progress tracking.
 
 ### 1) Required Artifacts & Lifecycles
-- **Implementation Plan ([implementation_plan.md](file:///Users/hexianghong/.gemini/antigravity-ide/brain/4a2a015a-aa92-42c8-89d7-abba506a1cd5/implementation_plan.md))**:
+- **Implementation Plan (`docs/specs/implementation_plan.md`)**:
   - *When*: Created/updated before writing implementation code.
-  - *Must Include*: Impact analysis, schema designs, REST/gRPC API structures, and new dependency rationales.
-- **Task Checklist ([task.md](file:///Users/hexianghong/.gemini/antigravity-ide/brain/4a2a015a-aa92-42c8-89d7-abba506a1cd5/task.md))**:
+  - *Must Include*: Impact analysis, schema designs, API structures, and **mandatorily use structured Spec Deltas (`[Added]`, `[Modified]`, `[Removed]`)** to clearly describe code and dependency changes.
+- **Task Checklist (`docs/specs/task.md`)**:
   - *When*: Maintained in real-time during execution.
   - *Purpose*: Tracks completion status using `[ ]`, `[/]`, `[x]`, allowing subsequent AI sessions to resume work seamlessly.
-- **Verification Walkthrough ([walkthrough.md](file:///Users/hexianghong/.gemini/antigravity-ide/brain/4a2a015a-aa92-42c8-89d7-abba506a1cd5/walkthrough.md))**:
+- **Verification Walkthrough (`docs/specs/walkthrough.md`)**:
   - *When*: Compiled before submitting code for review or merge.
   - *Must Include*: Affected files, build outputs, and test logs.
+- **Design Archiving (Archive Phase)**:
+  - *When*: Executed after the task is fully completed and submitted.
+  - *Action*: You must merge the current `implementation_plan.md` and `walkthrough.md`, then move and rename the file to `docs/specs/archive/YYYY-MM-DD-feature-name.md` to build the project's living history document and keep the directory clean.
 
 ### 2) Architecture Decision Records (ADRs)
-- If introducing significant architectural changes (e.g., choosing a caching library, altering index designs, swapping queue systems), you must write a standard ADR file under the `docs/adr/` directory using the standard format: **Context**, **Decision**, and **Consequences**.
+- If introducing significant architectural changes (e.g., choosing a caching library, altering index designs, swapping queue systems), you must write a standard ADR file (mandatorily saved under the `docs/adr/` directory) using the standard format: **Context**, **Decision**, and **Consequences**.
 
 ### 3) Command Skill Transformation
 - If you formulate high-value or complex command sequences for environment setups, test modules, or diagnostics:

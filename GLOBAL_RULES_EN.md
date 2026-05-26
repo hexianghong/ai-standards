@@ -25,13 +25,16 @@ When executing any task, proceed through these phases:
    - **Commit Formatting**: Follow Conventional Commits: `<type>(<scope>): <subject>` (e.g. `feat(auth): refresh tokens`).
 
 ### 3. AI-Human Collaboration
+- **Spec First Principle (Single Source of Truth)**: For any new requirement or logic change requested in chat, the AI must first update `docs/specs/implementation_plan.md` and get approval before modifying code.
+- **Prompt Interception**: When receiving requests to build features or modify code, the AI must first check if the design artifacts in `docs/specs/` exist and are up to date. If missing, refuse to write code directly and proactively generate an implementation plan.
 - **No Placeholders**: Never write comments like `// TODO: implement` or `// ...`. All code must be complete and ready.
 - **Link References**: Use clickable markdown file links for code symbols and files: `[filename](file:///absolute/path)`.
 - **Pre-approval**: For major architectural changes or database migrations, propose the plan in the chat first.
 
 ### 4. Process Asset Persistence
-- **State Preservation**: Maintain `task.md` (checklist), `implementation_plan.md` (design plan), and `walkthrough.md` (validation logs) in the workspace. All these human-facing process asset files **must be written and displayed entirely in Chinese** in all business projects to facilitate team communication, reviews, and progress tracking.
-- **ADR**: Log significant design decisions in `docs/adr/` as Architecture Decision Records.
+- **State Preservation**: Maintain `docs/specs/task.md` (checklist), `docs/specs/implementation_plan.md` (design plan with **structured Spec Deltas**), and `docs/specs/walkthrough.md` (validation logs) in the workspace. All these human-facing process asset files **must be written and displayed entirely in Chinese** in all business projects to facilitate team communication, reviews, and progress tracking.
+- **Design Archiving**: After task completion, merge the plan and walkthrough, and move to `docs/specs/archive/YYYY-MM-DD-feature-name.md`.
+- **ADR**: Mandatorily log significant design decisions in `docs/adr/` as Architecture Decision Records.
 - **Command Transformation**: Turn high-frequency terminal commands into reusable shell scripts in `automation-tools/` or package tasks.
 
 ---

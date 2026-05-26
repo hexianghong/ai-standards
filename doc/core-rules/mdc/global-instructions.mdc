@@ -15,7 +15,7 @@ alwaysApply: true
 - **规约守护者**：严格遵守已沉淀的规则（Rules）、技能（Skills）与 MCP 协同流程，保持开发决策的一致性。
 
 ## 1. 上下文与规范路由 (Rules & Context Resolution)
-在接收到用户的任何开发、重隔、Debug 需求后，你必须按以下顺序静默加载规则：
+在接收到用户的任何开发、重构、Debug 需求后，你必须按以下顺序静默加载规则：
 1. **安全红线加载**：首先读取全局安全规范 [security-guardrails.md](file:///Users/hexianghong/code/ai-standards/core-rules/security-guardrails.md)（建立安全与环境红线）。
 2. **技术栈规约动态匹配**：根据当前项目文件特征，自动匹配对应的技术栈规约：
    - **Go 项目**（检测到有 `go.mod`）：加载 [backend-go-standard.md](file:///Users/hexianghong/code/ai-standards/stack-templates/backend-go-standard.md)。
@@ -73,6 +73,8 @@ graph TD
 
 ## 3. AI-Human 协同与交互规范
 - **重大修改提前确认**：凡涉及公共接口变更、核心架构重构或引入高风险依赖的操作，AI 必须先输出“修改思路与技术方案”，在获得用户明确批准后方可执行。
+- **Spec 优先原则 (Single Source of Truth)**：任何在聊天中产生的新需求或逻辑变更，AI 必须首先去修改 `docs/specs/implementation_plan.md`，得到确认后再修改代码。绝不允许绕过设计文档直接在对话上下文里进行 Vibe Coding。
+- **动作前置拦截 (Prompt Interception)**：当接收到构建新功能或修改已有代码的请求时，必须先检查设计资产是否存在且为最新。如果缺失，拒绝直接写代码，并主动生成实施方案。
 - **拒绝占位符**：AI 编写的代码必须是完整的、可直接投入生产环境运行的代码，严禁编写 `// TODO: add logic here` 或 `// 略...` 等不完整占位符。
 - **链接化引用**：在向用户汇报或在文档中提及文件、类、接口时，必须输出可点击的本地文件链接，例如：[INSTRUCTIONS.md](file:///Users/hexianghong/code/ai-standards/core-rules/INSTRUCTIONS.md)。
 
@@ -83,18 +85,21 @@ graph TD
 > **过程资产语言规范**：所有生成并保存至本地、以供人类（开发者/评审者）阅读的过程资产文件（如 `implementation_plan.md`、`task.md` 和 `walkthrough.md`）**必须完全使用中文**进行撰写与展示，以方便团队进行顺畅的评审、沟通与进度跟踪。
 
 ### 1) 必须保存的规约文件与生命周期
-*   **实施方案设计 ([implementation_plan.md](file:///Users/hexianghong/.gemini/antigravity-ide/brain/4a2a015a-aa92-42c8-89d7-abba506a1cd5/implementation_plan.md))**：
+*   **实施方案设计 (`docs/specs/implementation_plan.md`)**：
     *   *时机*：在动手写代码前，AI 必须创建/更新此文件并提请用户确认。
-    *   *必须包含*：架构变更影响分析、关键的 Schema 设计图/实体表结构、接口原型、依赖增改说明。
-*   **任务进度面板 ([task.md](file:///Users/hexianghong/.gemini/antigravity-ide/brain/4a2a015a-aa92-42c8-89d7-abba506a1cd5/task.md))**：
+    *   *必须包含*：架构变更影响分析、关键的 Schema 设计图/实体表结构、接口原型，并**强制使用结构化的 Spec Deltas（`[Added]`, `[Modified]`, `[Removed]`）**清晰描述具体的代码和依赖增改点。
+*   **任务进度面板 (`docs/specs/task.md`)**：
     *   *时机*：在功能开发中，AI 必须实时使用该文件跟踪每一个子任务的进展（使用 `[ ]`, `[/]`, `[x]` 等符号表示）。
     *   *目的*：如果 AI 发生中断或上下文重置，接替的 AI 智能体能根据此文件立即无缝接手进度。
-*   **改动与验证报告 ([walkthrough.md](file:///Users/hexianghong/.gemini/antigravity-ide/brain/4a2a015a-aa92-42c8-89d7-abba506a1cd5/walkthrough.md))**：
+*   **改动与验证报告 (`docs/specs/walkthrough.md`)**：
     *   *时机*：在准备提交代码（Commit）和提请合并前，AI 必须整理此文件。
     *   *必须包含*：实际改动文件列表、**真实测试/编译命令及输出结果截图/日志**。
+*   **设计归档 (Archive Phase)**：
+    *   *时机*：在任务全部完成并提交后执行。
+    *   *要求*：必须主动将当前的 `implementation_plan.md` 和 `walkthrough.md` 内容合并，移动并重命名为 `docs/specs/archive/YYYY-MM-DD-feature-name.md`，构建项目历史活文档，保持目录整洁。
 
 ### 2) 必须沉淀的架构决策记录 (ADR)
-*   若开发涉及重大的系统决策（如“修改数据库索引”、“更换缓存策略”、“从 RabbitMQ 切换到 Kafka” 等），AI 必须在项目内创建或更新架构决策文档（推荐保存在 `docs/adr/` 目录下）。
+*   若开发涉及重大的系统决策（如“修改数据库索引”、“更换缓存策略”、“从 RabbitMQ 切换到 Kafka” 等），AI 必须在项目内创建或更新架构决策文档（强制保存在 `docs/adr/` 目录下）。
 *   *格式要求*：包含**上下文 (Context)**、**决策 (Decision)**、**后果 (Consequences)** 等标准 ADR 结构。
 
 ### 3) 必须沉淀的高频操作技能 (Skills Transformation)
