@@ -15,10 +15,14 @@ When executing any task, proceed through these phases:
 3. **MCP Usage**: Prioritize specialized MCP tools (Filesystem, Git, Database) over terminal command line executions.
 
 ### 2. Development Lifecycle
-1. **Context & Impact Assessment (Local Symbol Map)**:
-   - Construct a **Local Symbol Map** by reading only declarations/signatures of relevant dependencies using grep or MCP (do not load full files to save context).
-   - Analyze which modules are affected and check for breaking API/DB schema changes before writing code.
-2. **Verification**: After modifying code, run local build/test suites (e.g., `go test`, `mvn test`, `npm run build`). Report commands and output.
+1. **Context & Impact Assessment (Global Repository Map)**:
+   - Construct a **Repository Map** by scanning directory structures and core dependencies before reading file contents.
+   - For specific targets, only read Symbol signatures (e.g., Interface contracts) and refrain from reading massive irrelevant implementation files to preserve context.
+   - Analyze affected modules and breaking changes before coding.
+2. **Perception-Action-Verification Loop & TDD**:
+   - Write failing tests first (TDD Protocol).
+   - Perform **Surgical Editing**: write the absolute minimum code to pass the test via precise diffs, never rewrite whole files.
+   - Stop and verify instantly after every surgical edit (e.g., `go test`, `npm run lint`).
 3. **Atomic Commits & Inquiries**:
    - **Subtask Design Phase**: AI must actively ask the user about their preferred Git Commit strategy (e.g., atomic commits per subtask, by functional modules, or unified commit at the end) when planning.
    - **Subtask Completion Phase**: AI must actively recommend a standard Git Commit right after a subtask gets marked as `[x]` in `task.md`.
@@ -35,6 +39,7 @@ When executing any task, proceed through these phases:
 - **State Preservation**: Maintain `docs/specs/task.md` (checklist), `docs/specs/implementation_plan.md` (design plan with **structured Spec Deltas**), and `docs/specs/walkthrough.md` (validation logs) in the workspace. All these human-facing process asset files **must be written and displayed entirely in Chinese** in all business projects to facilitate team communication, reviews, and progress tracking.
 - **Design Archiving**: After task completion, merge the plan and walkthrough, and move to `docs/specs/archive/YYYY-MM-DD-feature-name.md`.
 - **ADR**: Mandatorily log significant design decisions in `docs/adr/` as Architecture Decision Records.
+- **Lessons Learned (Self-Refining Memory)**: Proactively summarize any corrections from developers into concise rules and save them in `core-rules/LEARNING.md` or a `Lessons Learned` section.
 - **Command Transformation**: Turn high-frequency terminal commands into reusable shell scripts in `automation-tools/` or package tasks.
 
 ---

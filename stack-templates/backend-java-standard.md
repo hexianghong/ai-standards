@@ -33,9 +33,12 @@ public void readFile(String path) {
 ```
 
 ## 3. Exception Handling & Logging
-- **No Swallowed Exceptions**: Empty `catch` blocks are prohibited. You must either log the exception or bubble it up.
-- **Full Trace Logs**: Do not call `e.printStackTrace()` or log only `e.getMessage()`. Use `log.error("context message: {}", contextInfo, e)` to log the full exception stack trace.
-- **Granular Catching**: Avoid wrapping massive blocks of code in a generic `catch (Exception e)`. Implement fine-grained try-catch blocks targeting specific failure-prone methods.
+- **Follow Logging Standard**: Strictly adhere to the [logging-standard](file:///Users/hexianghong/code/ai-standards/stack-templates/skills/logging-standard/SKILL.md) for log levels, formatting, and trace propagation.
+- **No Swallowed Exceptions**: Empty `catch` blocks or using `System.out`/`e.printStackTrace()` are prohibited. You must log using standard logger or bubble it up.
+- **Full Trace Logs**: Do not log only `e.getMessage()` or concatenate `+ e`. Pass the `Throwable` object itself as the last argument (`log.error("context message: {}", contextInfo, e)`) to capture the full stack trace.
+- **Avoid Duplicate Logging**: If you catch an exception and rethrow it (directly or wrapped), **do not** log it as `ERROR` at that layer. Log only once at the final handler boundary.
+- **Global Exception Categorization**: Categorize global handler intercepts. Log business exceptions (e.g. `BizException`) as `WARN` (no stack trace) and system exceptions as `ERROR` (with stack trace).
+- **Async Thread Safeguards**: All background thread entries, MQ listeners, and scheduled tasks must be wrapped in top-level `try-catch (Throwable t)` to prevent silent death.
 
 ### ❌ Bad Example (Don't)
 ```java
@@ -51,7 +54,9 @@ try {
 try {
     doSomething();
 } catch (SpecificBusinessException e) {
-    log.error("Failed to execute business process: {}", businessId, e); // Structured log with stack trace
+    // Rely on GlobalExceptionHandler to catch system exceptions.
+    // Wrap and throw to let upper layers handle, avoiding duplicate logging.
+    throw new BizException("Business failed", e);
 }
 ```
 

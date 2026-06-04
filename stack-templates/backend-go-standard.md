@@ -56,8 +56,12 @@ func startWorker(ctx context.Context) {
 ```
 
 ## 3. Structured Logging & Transactions
-- **Structured JSON Logging**: App stdout logging must use structured logging frameworks (Go standard library `log/slog` or `go.uber.org/zap`). Logs in production must output in JSON format.
-- **Transaction Safety**: When opening database transactions, write `defer tx.Rollback()` immediately after transaction initialization. Upon a successful commit, the rollback deferred call is safely ignored. This ensures automatic rollback in case of premature error returns or panics.
+- **Follow Logging Standard**: Strictly comply with the [logging-standard](file:///Users/hexianghong/code/ai-standards/stack-templates/skills/logging-standard/SKILL.md) for log levels, structured JSON format, and trace context propagation.
+- **Structured JSON Logging**: Production stdout must use structured logging frameworks (Go `log/slog` or `zap`) in JSON format.
+- **Log Error Stack/Object**: Must pass the `error` object itself using structured fields (e.g. `slog.Any("error", err)` or `zap.Error(err)`). Do not log only `err.Error()` or concatenate.
+- **Avoid Duplicate Logging**: If you return the error (e.g., wrapping it with `fmt.Errorf`), **do not** log it as `ERROR` at that layer. Only log it at the final outermost handler.
+- **Transaction Safety**: Immediately follow transaction initialization with `defer tx.Rollback()`. The rollback is safely ignored upon a successful commit. This ensures automatic rollback during panics or early error returns.
+- **Panic Protection & Logging**: All goroutines must defer a recovery function to capture panics and log them as `ERROR` before exiting.
 
 ## 4. Quality & Engineering
 - Run `gofmt` and `goimports` to auto-format all code before committing.

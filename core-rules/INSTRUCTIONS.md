@@ -33,15 +33,15 @@ graph TD
     Verify --> GitCommit[5. Commit: Write Conventional Commit messages]
 ```
 
-### Step 1: Rules Alignment & Local Symbol Map Construction (Rules & Context Resolution)
-Before writing any code, construct a **Local Symbol Map** for the task and perform an impact assessment:
-1. **Local Symbol Map (Skeleton Awareness)**:
-   - Identify all external dependencies, interfaces, and domain models related to the task.
-   - Use grep, file search, or MCP tools to **read only the Symbol signatures and declarations** (such as Java interface contracts, Go struct definitions, and TS types/signatures).
-   - **Do not read massive implementation bodies of unrelated dependency files** to prevent token inflation and LLM attention dilution.
-2. **Impact Assessment**: Analyze which modules are affected and check for breaking API/DB schema changes before writing code.
-3. **Spec Alignment**: Ensure the planned code complies 100% with the matching language stack's guidelines (concurrency, error handling, safety).
-4. **Minimal Code Footprint**: Modify only the files strictly required to implement the feature. Avoid sweeping refactorings of unrelated files.
+### Step 1: Rules Alignment & Global Repository Map Construction (Repository Map & Resolution)
+Before writing any code, the AI must strictly follow the "Structure First, Content Second" principle to construct a **Repository Map** for the current task:
+1. **Global Exploration & Architectural Awareness**:
+   - **Never blindly guess file locations.** First, scan the directory structure, read `README.md`, and core entry points to establish context.
+   - Proactively use search tools (e.g., global `grep` or code retrieval APIs) to map out class, interface, and function references, forming a clear dependency tree.
+2. **Local Symbol Precision (Skeleton Awareness)**:
+   - Only read the Symbol signatures of strictly related classes (e.g., Interface contracts, types). **Do not read the full implementation bodies of unrelated files** to prevent context pollution.
+3. **Impact Assessment**: Analyze which modules are affected. Will this change break public APIs or database schemas?
+4. **Spec Alignment**: Ensure the planned code complies 100% with the loaded rule modules (e.g., security, error handling).
 
 
 ### Step 2: Skills Discovery & Reuse
@@ -55,9 +55,11 @@ Before writing any code, construct a **Local Symbol Map** for the task and perfo
 - Prioritize using specialized MCP servers/tools (Filesystem, Postgres/MySQL DB, Git) instead of running slow or noisy shell commands like `grep`, `find`, or `cat` in the terminal.
 - For database or model-related tasks, use DB MCP to inspect schema details directly. Never assume column names or data types.
 
-### Step 4: Verification & Build Checks
-- After code modifications, run the local project build and test suite (e.g., `go test ./...`, `mvn test`, `npm run build`) to ensure the changes compile and pass tests.
-- Report the specific test commands used and their outputs in your response.
+### Step 4: Perception-Action-Verification Loop & TDD Protocol
+Abandon the outdated "write all code then test" model. For every subtask in `task.md`, you must enter a strict micro-loop:
+1. **TDD as a Constraining Protocol**: Before implementing logic, first define or write a failing test case or verification standard (Red).
+2. **Surgical Editing**: When writing the implementation code, strictly follow the rule: "Write the absolute minimum code required to pass the test" (Green). Never rewrite entire files or perform unrequested "drive-by refactoring." Code changes must be precise, targeted diffs.
+3. **Atomic Verification**: After every surgical edit, you **must stop** and run local build/test tools (e.g., `go test`, `npm run lint`). If it fails, use the error logs to self-correct immediately. Only after verification passes can you move to the next subtask.
 
 ### Step 5: Atomic Commits & Conventional Git Commits
 - **Subtask Design Phase (Inquiry Mechanism)**: When planning the implementation details and splitting tasks in `task.md`, the AI **must actively ask** the user about their preferred Git Commit strategy (e.g., committing after every subtask, committing by functional modules, or making a single unified commit upon task completion).
@@ -103,7 +105,11 @@ To prevent context reset issues and facilitate code review, audit, and onboardin
 ### 2) Architecture Decision Records (ADRs)
 - If introducing significant architectural changes (e.g., choosing a caching library, altering index designs, swapping queue systems), you must write a standard ADR file (mandatorily saved under the `docs/adr/` directory) using the standard format: **Context**, **Decision**, and **Consequences**.
 
-### 3) Command Skill Transformation
+### 3) Self-Refining Knowledge Base (Lessons Learned)
+- **Long-term Memory Mechanism**: If the AI violates a rule, uses a deprecated API, or is corrected by the user during the interaction, the AI **must proactively** summarize this correction into a concise principle and append it to the project's `core-rules/LEARNING.md` (or the dedicated `Lessons Learned` section in `GEMINI.md`).
+- This ensures the AI continuously learns from mistakes and guarantees it will not repeat the same error in future sessions within the same project.
+
+### 4) Command Skill Transformation
 - If you formulate high-value or complex command sequences for environment setups, test modules, or diagnostics:
   - **Do not** leave them solely in the chat history.
   - **Must** save them as reusable shell scripts in the `automation-tools/` directory or add them as runnable targets in the project’s build files (e.g., `package.json` scripts, `Makefile`, or `build.gradle` tasks).

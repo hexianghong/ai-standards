@@ -342,6 +342,10 @@ if [ ! -f "GEMINI.md" ]; then
 - **核心接口/契约**: 列出项目中最关键的公共接口、服务定义文件路径（例如 `domain/service/order.go` 或 `IUserService.java`）。
 - **核心模型/实体**: 列出关键的数据库实体或领域对象声明（例如 `model/user.go` 或 `User.java`）。
 - *开发前，AI 智能体应优先参考这些符号骨架声明，避免盲目打开实现细节或重复编写相似的工具类。*
+
+## 6. AI 自我进化与错题本 (Lessons Learned)
+- **长效记忆库**: [LEARNING.md](./LEARNING.md)
+- *注意: 任何在此项目中被开发者纠正的代码规范或错误，AI 必须主动总结并写入该文件中，确保不再重复犯错。*
 EOF
         echo "  🔹 GEMINI.md 模板生成成功！请根据您的具体项目修改完善它。"
     else
@@ -371,6 +375,10 @@ EOF
 - **Core Interfaces/Contracts**: List the most critical public interface or service definitions paths (e.g. `domain/service/order.go` or `IUserService.java`).
 - **Core Models/Entities**: List crucial database entities or domain objects declarations (e.g. `model/user.go` or `User.java`).
 - *Before coding, AI agents must prioritize reviewing these skeletal symbols to avoid loading deep implementation bodies or writing redundant utilities.*
+
+## 6. AI Lessons Learned & Self-Refinement
+- **Long-term Memory**: [LEARNING.md](./LEARNING.md)
+- *Note: Any corrections made by developers regarding code style or mistakes must be summarized by the AI and saved to this file to prevent repeating the same errors.*
 EOF
         echo "  🔹 GEMINI.md template created successfully!"
     fi
@@ -382,7 +390,18 @@ else
     fi
 fi
 
-# 8. 自动更新 .gitignore 排除规则
+# 8. 自动初始化本地错题本 LEARNING.md
+if [ ! -f "LEARNING.md" ]; then
+    if [ "$LANGUAGE" = "cn" ]; then
+        cp "${STANDARDS_DIR}/doc/core-rules/LEARNING.md" ./LEARNING.md
+        echo "  🔹 LEARNING.md 错题本生成成功！"
+    else
+        cp "${STANDARDS_DIR}/core-rules/LEARNING.md" ./LEARNING.md
+        echo "  🔹 LEARNING.md memory file created successfully!"
+    fi
+fi
+
+# 9. 自动更新 .gitignore 排除规则
 exclude_generated_files
 
 if [ "$LANGUAGE" = "cn" ]; then
