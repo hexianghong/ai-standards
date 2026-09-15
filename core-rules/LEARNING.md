@@ -1,26 +1,28 @@
-# AI Lessons Learned & Self-Refining Knowledge Base
+# AI 错题本与自我进化知识库 (Lessons Learned)
 
 > [!IMPORTANT]
-> **Instructions**: This is a dedicated "dynamic memory area" for the current project. Any critical mistakes made by the AI, coding style corrections from developers, or new conventions arising from business changes **must be mandatorily recorded here** to ensure the AI does not repeat the same mistakes.
+> **说明**：这是一个为项目专门维护的“结构化动态记忆区”。所有 AI 在本项目中犯下的关键错误、被开发者纠正的代码风格、或是因业务变动产生的新规约，**必须强制归级分类记录在此处**，以确保 AI 在后续开发中不会重复犯错。
 > 
-> **AI Operational Red Line**: Whenever you are explicitly corrected by a developer, before replying "Understood, I will fix it", you **must proactively update this file or the local `GEMINI.md` with the new lesson**.
+> **AI 操作红线**：每次你被开发者明确纠正错误后，必须**主动将这条教训更新至本文件的对应分类节点之下**。
 
 ---
 
-## 🚫 Lessons Learned (Historical Mistakes)
+## 1. 🛡️ 安全、环境与权限防线 (Security & Infra)
+*记录环境配置、鉴权 Header、敏感信息处理及高危命令相关教训。*
+- `[2026-XX-XX] [鉴权]` *示例：调用微服务内部接口时，必须带上 `X-Tenant-ID` Header，否则会导致 401。*
 
-*Use this section to record past pitfalls that must be avoided in future development. Format: `[Date] [Category] Description`*
+## 2. ⚙️ 架构、数据与 API 规范 (Architecture & API)
+*记录数据库 Schema 约定、事务范围、事务回滚及 API 契约相关教训。*
+- `[2026-XX-XX] [数据库]` *示例： User 表查询必须带上 `is_deleted = 0` 软删除过滤条件。*
 
-- `[2026-XX-XX] [Style]` *Example: Inline styles are prohibited in the frontend. All styles must be defined and referenced from `style.css`.*
-- `[2026-XX-XX] [API Usage]` *Example: When calling the internal user service, you must pass the `X-Tenant-ID` header, otherwise a 401 error will occur.*
-- ... (To be populated dynamically by AI during development)
+## 3. 🛠️ 运维、Shell 与部署规范 (DevOps & Shell)
+*记录 Shell 脚本安全、Docker/K8s 配置及日志排查相关教训。*
+- `[2026-XX-XX] [Shell]` *示例：所有部署脚本顶部必须包含 `set -euo pipefail`，清理缓存时禁止使用裸 `rm -rf $VAR/*`。*
 
-## 💡 New Best Practices & Conventions
-
-*Use this section to record project-specific non-standard rules or specific technical preferences that evolve over time.*
-
-- `[2026-XX-XX] [Database]` *Example: For queries on the User table, always check `is_deleted = false`. Do not perform physical deletions.*
-- ... (To be populated)
+## 4. 🎨 前后端代码风格与测试规范 (Code Style & Testing)
+*记录类型安全 (TypeScript any 禁用)、组件拆分、样式收敛及 TDD 单测相关教训。*
+- `[2026-XX-XX] [前端]` *示例：禁止在组件 TSX 中硬编码内联样式 `style={{...}}`，必须使用 Tailwind CSS 原子类。*
 
 ---
-*Note: When using Antigravity, ensure this file is referenced in `GEMINI.md` via `[LEARNING.md](file:///...)` so the AI can perceive and proactively read it in the global context.*
+> [!TIP]
+> **Token 上下文管理提示**：当本文件教训超过 50 条时，AI 应主动提请开发者进行一次归纳提取，将通用的教训沉淀进全局规则，并清理过期的临时条目。

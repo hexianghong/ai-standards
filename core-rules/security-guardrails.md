@@ -1,32 +1,35 @@
-# Security Guardrails & Cloud-Native Engineering Standards
+# 安全红线与云原生（GCP/DevOps）工程标准
 
-## 1. Zero-Trust Credentials
-- **Strictly Prohibited**: Never hardcode API Keys, secrets, tokens, JWT secrets, database passwords, GCP service account keys, or private keys in code, configuration files (YAML/JSON), tests, or comments.
-- **Runtime Injection**: All credentials must be read from environment variables or runtime container mounts (e.g., `os.Getenv` in Go, `process.env` in Node, `System.getenv` in Java).
-- **Git Safety**: If creating new local config files containing sensitive paths/configurations, they must be excluded in `.gitignore` and accompanied by a dummy `.env.example` template.
+## 1. 凭证绝不落地 (Zero-Trust Credentials)
+- **绝对禁止**在任何代码、配置文件（YAML/JSON）、测试用例或注释中硬编码 API Key、Token、JWT Secret、数据库密码、GCP 服务账号密钥或私钥。
+- 必须通过本地环境变量或容器挂载注入运行时（例如 Go 的 `os.Getenv`，Node 的 `process.env`，Java 的 `System.getenv`）。
+- 如果需要新建本地配置文件，必须自动在 `.gitignore` 中将其排除，并提供相应的 `.env.example` 模板。
 
-## 2. API Gateway & Routing Standards (Kong Gateway)
-- Any newly exposed internal microservices or endpoints must follow RESTful or gRPC API standards. Route configuration must be prioritized at the API Gateway layer (Kong) for centralized authentication, authorization, and rate limiting.
-- Do not write custom CORS handling, rate-limiting, or authorization middleware in application code unless gateway layer solutions are unavailable.
+## 2. 统一 API 网关与路由规范 (Kong Gateway)
+- 任何新暴露的内部微服务或 API 接口，其路由设计必须符合 RESTful 或 gRPC 规范，且优先考虑在网关层（Kong）进行统一的权限校验与前置限流（Rate Limiting）。
+- 严禁在业务代码中重复编写基础限流与跨域（CORS）逻辑。
+- **重定向白名单校验 (Redirect Whitelisting)**：任何基于客户端传入参数执行外部重定向的应用路由（如登录/登出回调），必须对目标地址进行白名单域名校验，严禁引发开放重定向（Open Redirect）漏洞。
+- **HTTP 方法合规性 (HTTP Method Compliance)**：严禁将改变状态或触发同步的操作（如数据库更新、数据导入、后台同步任务）映射为 GET 请求。所有具有副作用的操作必须使用 POST、PUT 或 DELETE，防范 CSRF 与浏览器预拉取风险。
 
-## 3. Cloud-Native & Containerization Standards (GCP / K8s / Ubuntu)
-- **Environment Isolation**: Clearly separate runtime configurations into `Development`, `Staging`, and `Production` profiles/environments.
-- **Minimal & Safe Container Images**: Dockerfiles must use multi-stage builds. The final runtime image should be a lightweight, secure base image like `alpine` or `distroless` to minimize vulnerabilities. Full-size OS distributions are prohibited.
-- **Spot Instance Compatibility**: Deployment scripts or configurations targeting K8s or GCP (such as E2 series) must design for Spot instance preemptibility. Stateless services must implement **graceful shutdown** (handling `SIGTERM` signals and terminating connections/flushing logs within 30 seconds).
+## 3. 云原生与容器化标准 (GCP / K8s / Ubuntu)
+- **多环境隔离**：任何配置变更必须明确区分 `Development`、`Staging` 和 `Production`。
+- **轻量与安全镜像**：编写 `Dockerfile` 时，后端服务必须使用多阶段构建（Multi-stage Build），最终运行镜像优先选择 `alpine` 或 `distroless`，禁止使用包含大量漏洞的完整版系统镜像。
+- **Spot 实例兼容**：在针对 GCP（如 E2 系列）或 K8s 编写部署脚本时，必须考虑到 Spot 实例（竞价实例）的突发中断特性。无状态服务必须配置优雅停机（Graceful Shutdown），确保收到 `SIGTERM` 信号后，在 30 秒内处理完存量请求并安全退出。
 
-## 4. Log Security & PII Protection
-- **No PII Leaks**: Strictly prohibit logging unmasked Personally Identifiable Information (PII) including passwords, bank accounts, emails, phone numbers, and identity cards in stdout or log files.
-- **Query Logging**: When logging database queries or raw external API payloads, sensitive parameters must be obfuscated, or debug logs must be disabled in Production environments.
+## 4. 敏感日志与信息泄露阻断 (Log Security & PII Protection)
+- **绝对禁止**在生产或测试环境日志中打印未经脱敏的 PII（个人身份信息），包括但不限于密码、银行卡号、手机号、身份证号、邮箱地址等。
+- **严禁在 GET 请求中传递敏感参数**：凭证、认证 Token、密码等绝不能通过 GET Query 参数传输，防止在网关及反向代理 Access Log 中被明文记录。必须使用 POST 请求体。
+- 打印 SQL 调试日志或外部 API 请求报文时，必须经过敏感字段脱敏或在生产环境默认关闭 DEBUG 级别日志。
 
-## 5. SQL Injection Prevention
-- All database interactions, whether via raw SQL queries or ORM frameworks (e.g., Go GORM, Java MyBatis/JPA, Node Prisma/Sequelize), must use **parameterized queries** or prepared statements.
-- Direct string concatenation to construct SQL statements is strictly prohibited.
+## 5. 数据库安全与 SQL 注入防范 (SQL Injection Prevention)
+- 所有涉及数据库查询的操作，不论使用原生 SQL 还是 ORM 框架（如 Go 的 GORM、Java 的 MyBatis/JPA、Node 的 Prisma/Sequelize），必须采用**参数化查询（Parameterized Queries）**或预编译语句。
+- 严禁通过简单的字符串拼接构建 SQL 执行语句。
 
-## 6. Dependency Security & Compliance
-- Always lock dependency versions (e.g., `go.sum`, `package-lock.json`, `pnpm-lock.yaml`, specific versions in `pom.xml`). The use of floating versions or `latest` tags is prohibited.
-- Do not introduce libraries with highly restrictive copyleft licenses (like GPL or AGPL) into commercial codebases without legal and security reviews.
+## 6. 依赖项管理与合规审计 (Dependency Security)
+- 引入第三方库时，必须锁定版本（使用 `go.sum`、`package-lock.json`、`pnpm-lock.yaml`、`pom.xml` 的具体版本号），禁止使用 `latest` 等模糊版本。
+- 严禁在未经评估前引入含有传染性开源协议（如 GPL 系列、AGPL）的依赖库到商业项目中。
 
-## 7. AI & MCP Tooling Safety Guardrails
-- AI agents using MCP tools must follow the Principle of Least Privilege.
-- Never use unverified third-party MCP servers that read or write live database tables or sensitive credentials.
-- When executing terminal commands, destructive actions (e.g., `rm -rf` without explicit folder constraints, clearing DB tables) are prohibited without explicit human review and approval.
+## 7. AI 及 MCP 插件使用红线 (AI & MCP Tooling Guardrails)
+- AI 智能体在使用 MCP 工具时，应严格遵循最小权限原则（Principle of Least Privilege）。
+- 严禁使用未经验证的第三方 MCP 服务直接读取或写入包含真实用户生产数据的数据库。
+- 在通过 Terminal MCP 执行命令时，严禁使用类似 `rm -rf /` 或不带限制的批量清空数据的操作，执行破坏性动作前必须进行双人确认（即输出设计，等待用户手动点击批准）。

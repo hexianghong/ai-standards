@@ -1,21 +1,22 @@
 #!/bin/bash
-# 这个脚本用于在你的已有项目下，自动检测技术栈并创建指向全局 AI 规范的软链接，支持中英文版本及主流 AI IDE 自动加载。
+# ==============================================================================
+# automation-tools/init-project.sh
+# 作用: 为目标项目一键注入 Antigravity 全局规约 (GEMINI_GLOBAL.md) 与原生技能库 (.agents/skills)，
+#       并根据检测到的技术栈动态初始化本地业务上下文 (GEMINI.md) 与错题本 (LEARNING.md)。
+# 专享适配: Google DeepMind Antigravity IDE
+# ==============================================================================
 
-# 1. 解析命令行参数
-LANGUAGE=""
+set -euo pipefail
+
 UPDATE_MODE=0
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        -en|--en|--english) LANGUAGE="en" ;;
-        -cn|--cn|--chinese) LANGUAGE="cn" ;;
         -u|--update) UPDATE_MODE=1 ;;
         -h|--help)
             echo "用法: $0 [选项]"
             echo "选项:"
-            echo "  -en, --en, --english    注入英文版规范 (Inject English rules) [默认]"
-            echo "  -cn, --cn, --chinese    注入中文版规范 (Inject Chinese rules)"
-            echo "  -u, --update            更新已有的 AI 规范软链接 (Update existing AI rules links)"
-            echo "  -h, --help              显示此帮助信息"
+            echo "  -u, --update    更新已有项目的 AI 规约软链接与环境配置"
+            echo "  -h, --help      显示此帮助信息"
             exit 0
             ;;
         *) echo "❌ 未知参数: $1"; exit 1 ;;
@@ -23,60 +24,46 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# 2. 交互式选择语言（如果未通过命令行指定且在交互式终端中运行）
-if [ -z "$LANGUAGE" ] && [ -t 0 ]; then
-    echo "🌐 请选择 AI 规则语言版本 / Select rule language:"
-    echo "  1) English (英文) [默认 / Default]"
-    echo "  2) 中文 (Chinese)"
-    read -r -p "请输入序号 (1 或 2): " lang_choice
-    if [ "$lang_choice" = "2" ]; then
-        LANGUAGE="cn"
-    else
-        LANGUAGE="en"
-    fi
-fi
-
-# 兜底默认语言为英文（最适合 AI 消费）
-if [ -z "$LANGUAGE" ]; then
-    LANGUAGE="en"
-fi
-
-# 3. 动态获取规范仓库的绝对路径并确定源文件
+# 动态获取规范仓库的绝对路径并确定源文件 (单一事实来源 SSOT)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STANDARDS_DIR="$(dirname "$SCRIPT_DIR")"
-
-if [ "$LANGUAGE" = "cn" ]; then
-    INSTRUCTIONS_PATH="${STANDARDS_DIR}/doc/core-rules/INSTRUCTIONS.md"
-    if [ $UPDATE_MODE -eq 1 ]; then
-        echo "🔄 将使用【中文版】规范（来自 doc/）进行项目更新..."
-    else
-        echo "🇨🇳 将使用【中文版】规范（来自 doc/）进行项目注入..."
-    fi
-else
-    INSTRUCTIONS_PATH="${STANDARDS_DIR}/core-rules/INSTRUCTIONS.md"
-    if [ $UPDATE_MODE -eq 1 ]; then
-        echo "🔄 将使用【英文版】规范（来自 根目录）进行项目更新..."
-    else
-        echo "🇬🇧 将使用【英文版】规范（来自 根目录）进行项目注入..."
-    fi
-fi
+INSTRUCTIONS_PATH="${STANDARDS_DIR}/core-rules/INSTRUCTIONS.md"
+SKILLS_PATH="${STANDARDS_DIR}/stack-templates/skills"
 
 if [ ! -f "$INSTRUCTIONS_PATH" ]; then
-    echo "❌ 错误: 找不到最高总控文件: $INSTRUCTIONS_PATH"
+    echo "❌ 错误: 找不到最高执行总控文件: $INSTRUCTIONS_PATH" >&2
     exit 1
 fi
 
-# 4. 自动检测项目技术栈
+if [ $UPDATE_MODE -eq 1 ]; then
+    echo "🔄 正在更新项目 Antigravity AI 规约标准与技能库软链接..."
+else
+    echo "🚀 正在为当前项目注入 Antigravity 全局 AI 规约标准..."
+fi
+
+# 自动检测项目技术栈
 DETECTED_STACKS=()
 IS_VALID_PROJECT=0
+PRIMARY_STACK=""
+RUN_CMD=""
+TEST_CMD=""
+STACK_DOC_LINK=""
 
 if [ -f "go.mod" ]; then
     DETECTED_STACKS+=("Go")
+    PRIMARY_STACK="Go"
+    RUN_CMD="go run main.go"
+    TEST_CMD="go test -v ./..."
+    STACK_DOC_LINK="- **后端 Go 研发规范**: [backend-go-standard.md](${STANDARDS_DIR}/stack-templates/backend-go-standard.md)"
     IS_VALID_PROJECT=1
 fi
 
 if [ -f "pom.xml" ] || [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
     DETECTED_STACKS+=("Java")
+    [ -z "$PRIMARY_STACK" ] && PRIMARY_STACK="Java"
+    [ -z "$RUN_CMD" ] && RUN_CMD="mvn spring-boot:run"
+    [ -z "$TEST_CMD" ] && TEST_CMD="mvn test"
+    STACK_DOC_LINK="${STACK_DOC_LINK}\n- **Java 微服务规范**: [backend-java-standard.md](${STANDARDS_DIR}/stack-templates/backend-java-standard.md)"
     IS_VALID_PROJECT=1
 fi
 
@@ -84,97 +71,76 @@ if [ -f "package.json" ]; then
     IS_VALID_PROJECT=1
     if grep -q '"vue"' package.json; then
         DETECTED_STACKS+=("Vue")
+        [ -z "$PRIMARY_STACK" ] && PRIMARY_STACK="Vue"
+        [ -z "$RUN_CMD" ] && RUN_CMD="npm run dev"
+        [ -z "$TEST_CMD" ] && TEST_CMD="npm run test"
+        STACK_DOC_LINK="${STACK_DOC_LINK}\n- **前端 Vue3 规范**: [frontend-vue3-tailwind.md](${STANDARDS_DIR}/stack-templates/frontend-vue3-tailwind.md)"
     elif grep -q '"react"' package.json; then
         DETECTED_STACKS+=("React")
+        [ -z "$PRIMARY_STACK" ] && PRIMARY_STACK="React"
+        [ -z "$RUN_CMD" ] && RUN_CMD="npm run dev"
+        [ -z "$TEST_CMD" ] && TEST_CMD="npm run test"
+        STACK_DOC_LINK="${STACK_DOC_LINK}\n- **前端 React 规范**: [frontend-react-standard.md](${STANDARDS_DIR}/stack-templates/frontend-react-standard.md)"
     else
-        DETECTED_STACKS+=("Node.js/JS/TS")
+        DETECTED_STACKS+=("Node.js")
+        [ -z "$PRIMARY_STACK" ] && PRIMARY_STACK="Node.js"
+        [ -z "$RUN_CMD" ] && RUN_CMD="npm start"
+        [ -z "$TEST_CMD" ] && TEST_CMD="npm test"
     fi
 fi
 
 if [ -f "requirements.txt" ] || [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
     DETECTED_STACKS+=("Python")
+    [ -z "$PRIMARY_STACK" ] && PRIMARY_STACK="Python"
+    [ -z "$RUN_CMD" ] && RUN_CMD="python main.py"
+    [ -z "$TEST_CMD" ] && TEST_CMD="pytest"
     IS_VALID_PROJECT=1
 fi
 
 if [ -f "Cargo.toml" ]; then
     DETECTED_STACKS+=("Rust")
+    [ -z "$PRIMARY_STACK" ] && PRIMARY_STACK="Rust"
+    [ -z "$RUN_CMD" ] && RUN_CMD="cargo run"
+    [ -z "$TEST_CMD" ] && TEST_CMD="cargo test"
     IS_VALID_PROJECT=1
 fi
 
-if [ -f "GEMINI.md" ] || [ -f "GEMINI_GLOBAL.md" ] || [ -f ".cursorrules" ] || [ -f ".clinerules" ]; then
+if [ -f "GEMINI.md" ] || [ -f "GEMINI_GLOBAL.md" ]; then
     IS_VALID_PROJECT=1
 fi
 
 if [ $IS_VALID_PROJECT -eq 0 ]; then
-    if [ "$LANGUAGE" = "cn" ]; then
-        echo "⚠️  未检测到标准项目标志 (如 go.mod, pom.xml, package.json 等)。"
-        if [ $UPDATE_MODE -eq 1 ]; then
-            echo "是否仍要更新 AI 规范标准？(y/N)"
-        else
-            echo "是否仍要注入 AI 规范标准？(y/N)"
-        fi
-    else
-        echo "⚠️  No standard project files detected (like go.mod, pom.xml, package.json)."
-        if [ $UPDATE_MODE -eq 1 ]; then
-            echo "Do you still want to update AI rules? (y/N)"
-        else
-            echo "Do you still want to inject AI rules? (y/N)"
-        fi
-    fi
-    read -r response
+    echo "⚠️  未检测到标准项目标志 (如 go.mod, pom.xml, package.json, Cargo.toml 等)。"
+    read -r -p "是否仍要注入/更新 AI 规范标准？(y/N): " response
     if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-        echo "❌ Cancelled."
+        echo "❌ 已取消。"
         exit 1
     fi
 fi
 
-# 输出检测到的技术栈
 if [ ${#DETECTED_STACKS[@]} -ne 0 ]; then
-    if [ "$LANGUAGE" = "cn" ]; then
-        echo "🔍 检测到当前项目技术栈: ${DETECTED_STACKS[*]}"
-    else
-        echo "🔍 Detected project technology stacks: ${DETECTED_STACKS[*]}"
-    fi
+    echo "🔍 检测到项目技术栈: ${DETECTED_STACKS[*]}"
 else
-    if [ "$LANGUAGE" = "cn" ]; then
-        echo "ℹ️  未识别出具体技术栈，将使用通用配置注入。"
-    else
-        echo "ℹ️  No specific stack identified, using general configuration."
-    fi
+    echo "ℹ️  未识别出具体技术栈，使用基础通用配置注入。"
+    RUN_CMD="npm run dev"
+    TEST_CMD="npm test"
 fi
 
-# 自动清理与排除函数定义
+# 自动清理失效的软链接 (包含历史 Cursor/Cline 废弃软链接)
 cleanup_broken_links() {
-    local files=(
+    local legacy_files=(
         "./GEMINI_GLOBAL.md"
         "./.cursorrules"
         "./.clinerules"
         "./.github/copilot-instructions.md"
+        "./.agents/skills"
     )
-    for f in "${files[@]}"; do
+    for f in "${legacy_files[@]}"; do
         if [ -L "$f" ] && [ ! -e "$f" ]; then
             rm "$f"
-            if [ "$LANGUAGE" = "cn" ]; then
-                echo "  🧹 已清除失效软链接: $f"
-            else
-                echo "  🧹 Removed broken symlink: $f"
-            fi
+            echo "  🧹 已清除失效软链接: $f"
         fi
     done
-
-    # 清除 .cursor/rules/ 下失效的 mdc 软链接
-    if [ -d "./.cursor/rules" ]; then
-        for f in ./.cursor/rules/*.mdc; do
-            if [ -L "$f" ] && [ ! -e "$f" ]; then
-                rm "$f"
-                if [ "$LANGUAGE" = "cn" ]; then
-                    echo "  🧹 已清除失效 mdc 软链接: $f"
-                else
-                    echo "  🧹 Removed broken mdc symlink: $f"
-                fi
-            fi
-        done
-    fi
 }
 
 update_gitignore() {
@@ -184,238 +150,93 @@ update_gitignore() {
         touch "$gitignore_path"
     fi
     
-    # 检查是否已忽略（支持 /file 或 file 匹配）
     if ! grep -F -q -x "$file" "$gitignore_path" && ! grep -F -q -x "/$file" "$gitignore_path"; then
-        # 确保文件以换行符结尾
         if [ -s "$gitignore_path" ] && [ -n "$(tail -c 1 "$gitignore_path" 2>/dev/null)" ]; then
             echo "" >> "$gitignore_path"
         fi
-        echo "/$file" >> "$gitignore_path"
-        if [ "$LANGUAGE" = "cn" ]; then
-            echo "  ➕ 已将 /$file 添加至 .gitignore"
-        else
-            echo "  ➕ Added /$file to .gitignore"
-        fi
+        echo "$file" >> "$gitignore_path"
+        echo "  ➕ 已将 $file 添加至 .gitignore"
     fi
 }
 
 exclude_generated_files() {
-    if [ "$LANGUAGE" = "cn" ]; then
-        echo "🛡️  正在更新 .gitignore 以排除生成的文件及本地过程资产..."
-    else
-        echo "🛡️  Updating .gitignore to exclude generated files and local process assets..."
-    fi
-
-    # 排除主要的软链接
-    update_gitignore "GEMINI_GLOBAL.md"
-    update_gitignore ".cursorrules"
-    update_gitignore ".clinerules"
-    update_gitignore ".github/copilot-instructions.md"
-
-    # 排除 Cursor MDC 规则软链接
-    update_gitignore ".cursor/rules/global-instructions.mdc"
-    update_gitignore ".cursor/rules/security-guardrails.mdc"
-    update_gitignore ".cursor/rules/backend-go.mdc"
-    update_gitignore ".cursor/rules/backend-java.mdc"
-    update_gitignore ".cursor/rules/frontend-vue.mdc"
-    update_gitignore ".cursor/rules/frontend-react.mdc"
-
-    # 排除 AI 智能体开发过程资产文件
-    update_gitignore "implementation_plan.md"
-    update_gitignore "task.md"
-    update_gitignore "walkthrough.md"
+    echo "🛡️  正在更新 .gitignore 以排除生成的文件及本地过程资产..."
+    update_gitignore "/GEMINI_GLOBAL.md"
+    update_gitignore "/.agents/skills"
+    update_gitignore "/docs/specs/"
+    update_gitignore "/implementation_plan.md"
+    update_gitignore "/task.md"
+    update_gitignore "/walkthrough.md"
 }
 
-# 5. 建立指向全局规范总控的软链接 (支持多 AI 客户端)
-if [ "$LANGUAGE" = "cn" ]; then
-    echo "🔗 正在建立 AI 规范软链接..."
-else
-    echo "🔗 Creating AI rules symbolic links..."
-fi
-
-# 在创建前，清理所有可能存在的失效软链接
+# 1. 建立指向全局规范总控的软链接 (Antigravity 专享)
+echo "🔗 正在建立 AI 规范总控软链接..."
 cleanup_broken_links
 
-# 通用/Gemini 规范路径
 ln -sf "$INSTRUCTIONS_PATH" ./GEMINI_GLOBAL.md
-echo "  🔹 GEMINI_GLOBAL.md"
+echo "  🔹 GEMINI_GLOBAL.md -> $INSTRUCTIONS_PATH"
 
-# Cursor 规则文件
-ln -sf "$INSTRUCTIONS_PATH" ./.cursorrules
-echo "  🔹 .cursorrules"
-
-# Cline 规则文件
-ln -sf "$INSTRUCTIONS_PATH" ./.clinerules
-echo "  🔹 .clinerules"
-
-# GitHub Copilot 规则文件
-mkdir -p .github
-ln -sf "$INSTRUCTIONS_PATH" ./.github/copilot-instructions.md
-echo "  🔹 .github/copilot-instructions.md"
-
-# 6. Cursor 2026 最新 .cursor/rules/*.mdc 模块化规则支持
-if [ "$LANGUAGE" = "cn" ]; then
-    echo "📂 正在建立 Cursor 最新 .mdc 模块化规则软链接..."
-else
-    echo "📂 Creating Cursor .mdc modular rules symbolic links..."
+# 2. 挂载 Antigravity 原生工作区技能 (.agents/skills)
+if [ -d "$SKILLS_PATH" ]; then
+    echo "🧠 正在挂载 Antigravity 原生工作区技能库..."
+    mkdir -p ./.agents
+    ln -sfn "$SKILLS_PATH" ./.agents/skills
+    echo "  🔹 ./.agents/skills -> $SKILLS_PATH"
 fi
 
-mkdir -p .cursor/rules
-
-# 全局与安全
-if [ "$LANGUAGE" = "cn" ]; then
-    ln -sf "${STANDARDS_DIR}/doc/core-rules/mdc/global-instructions.mdc" .cursor/rules/global-instructions.mdc
-    ln -sf "${STANDARDS_DIR}/doc/core-rules/mdc/security-guardrails.mdc" .cursor/rules/security-guardrails.mdc
-    echo "  🔹 .cursor/rules/global-instructions.mdc"
-    echo "  🔹 .cursor/rules/security-guardrails.mdc"
-else
-    ln -sf "${STANDARDS_DIR}/core-rules/mdc/global-instructions.mdc" .cursor/rules/global-instructions.mdc
-    ln -sf "${STANDARDS_DIR}/core-rules/mdc/security-guardrails.mdc" .cursor/rules/security-guardrails.mdc
-    echo "  🔹 .cursor/rules/global-instructions.mdc"
-    echo "  🔹 .cursor/rules/security-guardrails.mdc"
-fi
-
-# 按需链接技术栈模版
-for stack in "${DETECTED_STACKS[@]}"; do
-    case $stack in
-        "Go")
-            if [ "$LANGUAGE" = "cn" ]; then
-                ln -sf "${STANDARDS_DIR}/doc/stack-templates/mdc/backend-go.mdc" .cursor/rules/backend-go.mdc
-            else
-                ln -sf "${STANDARDS_DIR}/stack-templates/mdc/backend-go.mdc" .cursor/rules/backend-go.mdc
-            fi
-            echo "  🔹 .cursor/rules/backend-go.mdc"
-            ;;
-        "Java")
-            if [ "$LANGUAGE" = "cn" ]; then
-                ln -sf "${STANDARDS_DIR}/doc/stack-templates/mdc/backend-java.mdc" .cursor/rules/backend-java.mdc
-            else
-                ln -sf "${STANDARDS_DIR}/stack-templates/mdc/backend-java.mdc" .cursor/rules/backend-java.mdc
-            fi
-            echo "  🔹 .cursor/rules/backend-java.mdc"
-            ;;
-        "Vue")
-            if [ "$LANGUAGE" = "cn" ]; then
-                ln -sf "${STANDARDS_DIR}/doc/stack-templates/mdc/frontend-vue.mdc" .cursor/rules/frontend-vue.mdc
-            else
-                ln -sf "${STANDARDS_DIR}/stack-templates/mdc/frontend-vue.mdc" .cursor/rules/frontend-vue.mdc
-            fi
-            echo "  🔹 .cursor/rules/frontend-vue.mdc"
-            ;;
-        "React")
-            if [ "$LANGUAGE" = "cn" ]; then
-                ln -sf "${STANDARDS_DIR}/doc/stack-templates/mdc/frontend-react.mdc" .cursor/rules/frontend-react.mdc
-            else
-                ln -sf "${STANDARDS_DIR}/stack-templates/mdc/frontend-react.mdc" .cursor/rules/frontend-react.mdc
-            fi
-            echo "  🔹 .cursor/rules/frontend-react.mdc"
-            ;;
-    esac
-done
-
-# 7. 自动初始化本地专属 GEMINI.md 业务上下文 (防覆盖)
+# 3. 自动初始化本地专属业务上下文 GEMINI.md (防覆盖，带技术栈联动)
 if [ ! -f "GEMINI.md" ]; then
-    if [ "$LANGUAGE" = "cn" ]; then
-        echo "📝 正在初始化项目专属业务上下文模板: GEMINI.md ..."
-        cat << 'EOF' > GEMINI.md
-# [项目名称] 业务上下文 (GEMINI.md)
+    echo "📝 正在初始化项目专属业务上下文模板: GEMINI.md (已联动检测到的技术栈) ..."
+    
+    cat << EOF > GEMINI.md
+# [项目名称] 业务上下文与本地规约 (GEMINI.md)
+
+> [!IMPORTANT]
+> 本项目遵循全局 AI 最高执行总控：[GEMINI_GLOBAL.md](./GEMINI_GLOBAL.md)，在此基础上执行以下项目专属业务规则。
 
 ## 1. 业务背景与核心功能 (Context)
 - **业务背景**: 简述此项目是什么、主要解决什么问题、服务于什么核心业务。
-- **核心数据流**: 简述核心业务流程及关键实体。
-- **系统架构**: 采用什么框架、数据库，以及对外的核心 API 接口。
+- **主要技术栈**: ${DETECTED_STACKS[*]:-通用全栈}
+- **系统架构**: 简述核心框架、服务划分及关键数据流。
 
-## 2. 项目独有开发规则 (Local Rules)
-- *在此处列出本项目特有的规则，例如特定的目录划分、强加的安全限制或特定库的使用规范。*
+## 2. 本地执行与已匹配规约 (Matching Standards)
+- **云原生与 SRE 规约**: [cloud-native-rules.md](${STANDARDS_DIR}/core-rules/cloud-native-rules.md)
+- **安全红线标准**: [security-guardrails.md](${STANDARDS_DIR}/core-rules/security-guardrails.md)
+$(echo -e "$STACK_DOC_LINK")
 
-## 3. 本地可用技能与自动化脚本 (Local Skills & Scripts)
-- **运行/开发**: `npm run dev` / `go run main.go`
-- **构建/测试**: `npm run build` / `go test ./...`
-- **自动化工具**: 如有内置的代码生成器、表迁移脚本，写在此处。AI 收到修改指令时，会优先调用此区域列出的命令或脚本。
+## 3. 本地可用技能与常用命令 (Local Skills & Commands)
+- **运行/开发**: \`${RUN_CMD:-npm run dev}\`
+- **构建/测试**: \`${TEST_CMD:-npm test}\`
+- **原生技能库**: 已通过 \`.agents/skills/\` 挂载全局 SRE 排障、日志规范与依赖图分析技能。
+- **本地自动化工具**: 如有内置代码生成器、迁移脚本，写在此处，AI 将优先复用。
 
 ## 4. 本地推荐 MCP 服务 (Recommended MCP Servers)
-- **Database MCP**: `postgresql://...` 或 SQLite 等（方便 AI 自动获取表结构 Schema 进行精准开发）。
-- **Git MCP**: 辅助 AI 进行精准的版本控制和分支管理。
-- **Filesystem MCP**: 优化大型代码库的文件精准检索。
+- **Database MCP**: 配置数据库连接，方便 AI 精准获取表结构 Schema。
+- **Git MCP**: 辅助 AI 进行精准的版本控制与分支管理。
+- **Filesystem MCP**: 优化跨项目文件的精准检索。
 
-## 5. 项目核心符号与领域模型 (Domain Symbols - 仓库图谱)
-- **核心接口/契约**: 列出项目中最关键的公共接口、服务定义文件路径（例如 `domain/service/order.go` 或 `IUserService.java`）。
-- **核心模型/实体**: 列出关键的数据库实体或领域对象声明（例如 `model/user.go` 或 `User.java`）。
-- *开发前，AI 智能体应优先参考这些符号骨架声明，避免盲目打开实现细节或重复编写相似的工具类。*
+## 5. 项目核心符号与契约 (Domain Symbols)
+- **核心接口/路由**: 列出项目中最关键的公共接口、API 路由定义文件。
+- **核心模型/实体**: 列出关键的数据库实体或领域对象声明。
 
-## 6. AI 自我进化与错题本 (Lessons Learned)
+## 6. AI 自我进化错题本 (Lessons Learned)
 - **长效记忆库**: [LEARNING.md](./LEARNING.md)
 - *注意: 任何在此项目中被开发者纠正的代码规范或错误，AI 必须主动总结并写入该文件中，确保不再重复犯错。*
 EOF
-        echo "  🔹 GEMINI.md 模板生成成功！请根据您的具体项目修改完善它。"
-    else
-        echo "📝 Initializing project-specific context template: GEMINI.md ..."
-        cat << 'EOF' > GEMINI.md
-# [Project Name] Business Context (GEMINI.md)
-
-## 1. Business Background & Core Functions (Context)
-- **Background**: What this project does and what business goal it solves.
-- **Core Flows**: Crucial business sequences and system interactions.
-- **System Architecture**: Libraries, databases, and major interface details.
-
-## 2. Project-Specific Local Rules (Local Rules)
-- *List rules specific to this repository (e.g. directory conventions, security rules).*
-
-## 3. Local Skills & Automation Scripts (Local Skills & Scripts)
-- **Run/Dev**: `npm run dev` / `go run main.go`
-- **Build/Test**: `npm run build` / `go test ./...`
-- **Automation tools**: List local generators or migration tools here. The AI will prioritize executing these scripts.
-
-## 4. Recommended Local MCP Servers (Recommended MCP Servers)
-- **Database MCP**: URL or configuration (enables AI to query schema properties).
-- **Git MCP**: Assisting with git operations.
-- **Filesystem MCP**: Optimization for indexing larger projects.
-
-## 5. Domain Symbols & Core Models (Domain Symbols - Repository Map)
-- **Core Interfaces/Contracts**: List the most critical public interface or service definitions paths (e.g. `domain/service/order.go` or `IUserService.java`).
-- **Core Models/Entities**: List crucial database entities or domain objects declarations (e.g. `model/user.go` or `User.java`).
-- *Before coding, AI agents must prioritize reviewing these skeletal symbols to avoid loading deep implementation bodies or writing redundant utilities.*
-
-## 6. AI Lessons Learned & Self-Refinement
-- **Long-term Memory**: [LEARNING.md](./LEARNING.md)
-- *Note: Any corrections made by developers regarding code style or mistakes must be summarized by the AI and saved to this file to prevent repeating the same errors.*
-EOF
-        echo "  🔹 GEMINI.md template created successfully!"
-    fi
+    echo "  🔹 GEMINI.md 模板生成成功！"
 else
-    if [ "$LANGUAGE" = "cn" ]; then
-        echo "ℹ️  检测到当前项目下已存在 GEMINI.md，跳过生成，避免覆盖您的配置。"
-    else
-        echo "ℹ️  GEMINI.md already exists, skipping template creation."
-    fi
+    echo "ℹ️  检测到当前项目下已存在 GEMINI.md，跳过生成，保留本地业务配置。"
 fi
 
-# 8. 自动初始化本地错题本 LEARNING.md
+# 4. 自动初始化本地错题本 LEARNING.md
 if [ ! -f "LEARNING.md" ]; then
-    if [ "$LANGUAGE" = "cn" ]; then
-        cp "${STANDARDS_DIR}/doc/core-rules/LEARNING.md" ./LEARNING.md
-        echo "  🔹 LEARNING.md 错题本生成成功！"
-    else
-        cp "${STANDARDS_DIR}/core-rules/LEARNING.md" ./LEARNING.md
-        echo "  🔹 LEARNING.md memory file created successfully!"
-    fi
+    cp "${STANDARDS_DIR}/core-rules/LEARNING.md" ./LEARNING.md
+    echo "  🔹 LEARNING.md 错题本生成成功！"
 fi
 
-# 9. 自动更新 .gitignore 排除规则
+# 5. 排除规则配置
 exclude_generated_files
 
-if [ "$LANGUAGE" = "cn" ]; then
-    if [ $UPDATE_MODE -eq 1 ]; then
-        echo "✅ 全局 AI 规范标准更新成功！"
-    else
-        echo "✅ 全局 AI 规范标准注入成功！"
-    fi
-    echo "👉 现在你可以直接在各大 AI IDE (Cursor / Cline / Copilot 等) 中唤醒 AI，AI 将自动加载全局标准。"
-else
-    if [ $UPDATE_MODE -eq 1 ]; then
-        echo "✅ Global AI rules successfully updated!"
-    else
-        echo "✅ Global AI rules successfully injected!"
-    fi
-    echo "👉 You can now wake up AI in Cursor / Cline / Copilot, and the rules will be loaded automatically."
-fi
+echo ""
+echo "✅ Antigravity 全局 AI 规范标准与技能库配置完成！"
+echo "👉 现在你可以在 Antigravity IDE 中开启会话，智能体将自动识别规约与原生技能。"

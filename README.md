@@ -1,99 +1,82 @@
-# Global AI Standards & Rules Library (ai-standards)
+# 全局 AI 协同工程与 SRE 运维规则引擎 (ai-standards)
 
-这是一个专为 AI 辅助开发（如 Cursor, Cline, GitHub Copilot 等 AI IDE）定制的全局开发规范与规则库。通过标准化指令、安全红线、技术栈模版以及协同工作流，帮助 AI 编写出符合企业级标准的高品质代码，并解决 AI 智能体上下文容易丢失的痛点。
+`ai-standards` 是一个专门为 **Google DeepMind Antigravity** 及现代 AI 智能体（AI IDE / Autonomous Agents）定制的**全局开发规范、SRE 运维规约与 SOP 引擎 (Full-Stack Engineering & SRE AI Rules Engine)**。
+
+本引擎面向高级 **SRE（站点可靠性工程师）** 与 **全栈平台工程师**，通过单一事实来源（SSOT）、标准化控制指令、安全防护红线、SRE 故障排查 SOP 以及 Agent 动态自闭环工作流，赋予 AI 智能体生产级的架构防护能力与专家级排障思维。
 
 ---
 
-## 📂 目录结构说明 (Directory Structure)
+## 🏛️ 项目三大核心支柱 (Core Pillars)
 
-项目采用**双语分流设计**，以平衡“AI 对英文理解更精确”与“开发者对中文阅读更自然”的需求：
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│    ai-standards: 全局 AI 协同工程与 SRE 运维规则引擎 (Antigravity-First)│
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+        ┌───────────────────────────┼───────────────────────────┐
+        ▼                           ▼                           ▼
+  【1. SRE 与全栈规约】       【2. 故障排查 SOP】         【3. AI Skill & MCP】
+  • Linux 内核与参数调优规约  • PLEG 死锁诊断决策树       • 标准 SKILL.md 技能插件
+  • CNI 容器与网络架构规约    • 502/504 链路止血 SOP      • K8s / MySQL / Git MCP
+  • Operator 开发与 TDD 规约  • CPU 100% 故障应急响应     • repo-map 依赖图建立
+```
 
-*   **`core-rules/` 与 `stack-templates/` (根目录 - 英文版)**：
-    *   专供 AI 消费。AI IDE 软链接将直接指向这里。
-    *   包含全局控制规则、安全规范以及 Go / Java / Vue3 / React 四大技术栈的英文标准。
-*   **`doc/` (中文版 - 开发者维护)**：
-    *   专供开发者阅读、扩充和修改。
-    *   包含与根目录完全对应的中文版规约，方便您直观管理规则资产。
+---
+
+## 📂 权威目录结构 (Single Source of Truth, SSOT)
+
+本项目已彻底精简收敛为**以中文为唯一权威标准（SSOT）**的极简架构，杜绝双语镜像复制与版本漂移：
+
+*   **`core-rules/`**：
+    *   `INSTRUCTIONS.md`：最高执行总控（Master Instructions），统管全生命周期。
+    *   `security-guardrails.md`：全局安全防护红线与网络治理标准。
+    *   `cloud-native-rules.md`：云原生容器、优雅停机、HPA 防抖与内核调优规约。
+    *   `LEARNING.md`：错题本与自我进化机制规范。
+*   **`stack-templates/`**：
+    *   多技术栈研发规约模版（Go、Java、Vue3、React 等）。
+    *   `skills/`：符合 Antigravity 规范的标准技能插件包（包含 `ops-troubleshooting` 故障排查决策树、`logging-standard` 结构化日志、`repo-map-analyzer` 等）。
 *   **`automation-tools/`**：
-    *   包含项目初始化与规则注入工具。
-*   **`GLOBAL_RULES_EN.md`**：
-    *   英文一键打包版规则，适合在无法建立软链接的环境中直接复制粘贴至项目配置文件。
+    *   自动化工具链：一键注入脚本 `init-project.sh`、代码大纲测绘器 `gen-repo-map.sh` 及过程资产归档脚本 `archive-specs.sh`。
+*   **`GEMINI_GLOBAL.md`**：
+    *   指向 `core-rules/INSTRUCTIONS.md` 的权威软链接入口。
 
 ---
 
-## 🚀 如何在其他项目中使用（操作手册）
+## 🚀 注入与使用操作手册 (Operation Guide)
 
-当您在本地开启了一个新的或已有的开发项目（例如一个 Go 或 Java 后端，或者 React 前端），可以通过本项目提供的自动化脚本，一键将 AI 规则注入到您的目标项目中。
+在新建或已有的开发/运维项目根目录下，直接运行本仓库的一键注入脚本：
 
-### 步骤 1：进入您的目标项目根目录
-在终端中进入您准备开发的项目文件夹：
 ```bash
+# 进入您的目标项目根目录
 cd /Users/hexianghong/code/your-target-project
-```
 
-### 步骤 2：运行注入脚本
-直接调用本仓库下的 `init-project.sh` 脚本：
-
-#### 选项 A：注入英文版规范 (推荐 🇬🇧)
-AI 对英文指令的理解和格式控制能力最强。**如果不带参数，脚本默认会注入英文版**：
-```bash
-/Users/hexianghong/code/ai-standards/automation-tools/init-project.sh --english
-```
-
-#### 选项 B：注入中文版规范 (🇨🇳)
-如果您希望 AI 在阅读规则时完全使用中文，可以指定中文参数：
-```bash
-/Users/hexianghong/code/ai-standards/automation-tools/init-project.sh --chinese
-```
-
-#### 选项 C：交互式选择
-如果您不加任何参数且处于交互终端中，脚本会主动弹出菜单供您选择：
-```bash
+# 运行注入脚本 (一键秒级注入)
 /Users/hexianghong/code/ai-standards/automation-tools/init-project.sh
 ```
 
-#### 选项 D：更新已有的 AI 规范 (🔄)
-当全局 `ai-standards` 规范库更新时，您可以在项目根目录重新运行脚本并指定更新参数，以一键清理失效链接并覆盖最新规范（此操作不会覆盖您的 `GEMINI.md`）：
-```bash
-/Users/hexianghong/code/ai-standards/automation-tools/init-project.sh --update
+### ⚙️ 脚本执行后的自动化动作
+1. **核心环境适配 (Antigravity)**：自动挂载 `GEMINI_GLOBAL.md` 软链接，并根据技术栈动态生成项目业务上下文 `GEMINI.md`。
+2. **原生技能注入 (.agents/skills)**：自动为目标项目挂载 `.agents/skills` 软链接，使 Antigravity 原生唤醒全局技能库。
+3. **初始化项目级错题本**：自动创建项目级 `LEARNING.md`，用于记录避坑教训。
+4. **排除规则配置**：自动在 `.gitignore` 中追加软链接及临时过程资产排除项，杜绝仓库污染。
+
+---
+
+## 🔄 三维自闭环认知演进飞轮 (Continuous Feedback Flywheel)
+
+```text
+┌──────────────────────────────┐
+│ 1. 深度原理与技术底座        │ ──▶ 提炼 ──▶ ┌──────────────────────────────┐
+│    knowledgeBase (知识库)    │              │ 2. 全局 AI 规则与 SOP 引擎   │
+└──────────────────────────────┘              │    ai-standards              │
+                                              └──────────────┬───────────────┘
+                                                             │ 约束与驱动
+                                                             ▼
+┌──────────────────────────────┐ ──▶ 升级 ──▶ ┌──────────────────────────────┐
+│ 4. 错题本升格与主动反哺提醒  │              │ 3. SRE 运维与全栈开发实战    │
+│    (LEARNING.md & Refine)    │ ◀── 反哺 ─── │    (Antigravity Pair Coding) │
+└──────────────────────────────┘              └──────────────────────────────┘
 ```
 
----
-
-## ⚙️ 脚本执行后发生了什么？
-
-脚本运行成功后，会在您的目标项目根目录下自动创建以下内容，无需手动配置：
-
-### 1. 自动检测技术栈
-- 脚本会自动检测项目根目录下的标志性文件（如 `go.mod`, `pom.xml`, `package.json` 等），并在注入时向您反馈检测到的技术栈。
-
-### 2. 自动建立多 IDE 软链接
-脚本会创建 4 个软链接，确保无论您使用哪种 AI IDE，规则都能被自动加载：
-- **`GEMINI_GLOBAL.md`**：通用的规范入口。
-- **`.cursorrules`**：供 **Cursor** 自动加载并作为 System Prompt 级约束。
-- **`.clinerules`**：供 **Cline (VS Code 插件)** 自动加载。
-- **`.github/copilot-instructions.md`**：供 **GitHub Copilot** 自动加载。
-
-### 3. 生成项目业务上下文模板 `GEMINI.md`
-若目标项目下不存在 `GEMINI.md`，脚本会自动根据所选语言生成一份模板文件。
-> [!TIP]
-> **请务必手动修改并完善 `GEMINI.md`**：在此文件中填入您项目的业务背景、核心表结构、本地的启动/测试命令以及可用的 MCP 服务。这是 AI 智能体快速融入您项目业务的“第一上下文”。
-
-### 4. 自动配置 `.gitignore` 排除规则
-为了防止将特定于本地绝对路径的软链接以及开发过程中的临时文件提交至 Git 仓库，脚本会自动在 `.gitignore` 中追加以下排除规则（支持幂等，已存在则不重复添加）：
-- 所有 AI 规范软链接文件（如 `GEMINI_GLOBAL.md`, `.cursorrules`, `.clinerules`, `.cursor/rules/*.mdc` 等）。
-- AI 智能体开发过程中生成的生命周期过程资产（`implementation_plan.md`, `task.md`, `walkthrough.md`）。
-> [!IMPORTANT]
-> **关于 `GEMINI.md` 的提交建议**：`GEMINI.md` 作为项目共享的业务上下文不属于自动排除范围，请正常将其提交至 Git，以便整个团队以及其他协作 AI 智能体能够共享相同的背景上下文。
-
----
-
-## 🔄 AI 协同开发推荐工作流
-
-注入规则后，在您的目标项目中唤醒 AI 助手时，AI 将自动遵循以下流程：
-1.  **Rules 对齐**：AI 自动读取项目根目录下的 `.cursorrules` (软链接) 及本地 `GEMINI.md`，明确开发红线。
-2.  **Skills 发现**：AI 优先扫描您项目内的 `automation-tools/` 或 `.skills/`，并融合全局 `/Users/hexianghong/code/gemini-skills` 库中的 TDD、系统化调试与顶级 UI 设计系统。
-3.  **过程资产沉淀 (State Preservation)**：开发过程中，AI 将在您的项目目录自动创建/维护以下文件：
-    -   `implementation_plan.md`：动手前向您提交的架构设计与变更计划。
-    -   `task.md`：任务 checklist 进度板，即使会话重置，下一个 AI 也能无缝接班。
-    -   `walkthrough.md`：改动说明以及本地测试/编译通过的终端输出日志。
+1. **主动反哺规约 (Proactive Mining)**：当 AI 协助您解决复杂故障或编写出通用脚本后，AI 将主动提示：“*本次解决的方案具备通用价值，建议提炼并归档至 ai-standards 或个人知识库 knowledgeBase*”。
+2. **错题本升格通道**：项目本地 `LEARNING.md` 记录的踩坑教训，会动态升级为全局通用规约。
