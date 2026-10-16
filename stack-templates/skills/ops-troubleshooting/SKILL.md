@@ -114,6 +114,9 @@ graph TD
 
 ## 3. 四大黄金信号与现场数据采样基准 (Diagnostics Matrix)
 
+> [!TIP]
+> **上下文防爆仓法则 (Context-Mode)**: 当采样超大日志或抓取全量事件（如 `journalctl`、`kubectl logs --tail=2000`、`dmesg`）时，严禁让无截断的海量 Raw Text 灌入对话。优先调用 `context-mode` MCP 工具（`ctx_execute` / `ctx_search`）沙箱化执行与意图检索，或严格结合 `grep` / `head` 提取关键堆栈，彻底保护会话上下文记忆。
+
 在着手干预前，必须收集以下四类黄金数据：
 1. **CPU / Load**：运行 `top -b -n 1 | head -n 25` 查看系统负载、用户态 CPU (`us`) 与 I/O 等待 (`wa`)。
 2. **内存 / OOM**：运行 `free -h` 并通过 `dmesg -T | grep -i oom` 确认是否有进程被内核强制杀死。

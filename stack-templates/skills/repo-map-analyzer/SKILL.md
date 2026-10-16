@@ -1,83 +1,83 @@
 ---
 name: repo-map-analyzer
-description: Use when navigating unfamiliar codebases, building compact symbol skeleton trees, analyzing cross-file call graphs and type hierarchies, extracting domain models, or planning safe refactoring without loading entire file contents into context.
+description: 代码仓库符号图谱分析师。适用于熟悉陌生代码库、构建紧凑的符号骨架树、分析跨文件调用链与类型层级、提取领域模型，在无需向上下文加载完整文件内容的前提下规划安全重构。
 ---
 
-# Repo Map Analyzer
+# 代码仓库符号图谱分析师 (Repo Map Analyzer)
 
-## Overview
-**Repo Map Analyzer** is a high-precision, token-efficient code structure analysis skill. It parses a repository's AST (Abstract Syntax Tree) to extract symbol skeletons (interfaces, classes, methods, fields, entities), cross-file relationships, and domain models, enabling deep structural understanding with minimal context window overhead.
-
----
-
-## When to Use
-- **Deep Exploration**: When you need to understand specific module internals without reading hundreds of raw implementation lines.
-- **Domain Modeling**: Extracting core business entities, value objects, and database relationships (ER diagrams).
-- **Refactoring Blast Radius**: Tracing upstream callers and downstream dependencies of specific methods or classes.
-- **AI Context Compression**: Generating compact symbol skeletons to feed into planning prompts or `GEMINI.md`.
+## 概述
+**代码仓库符号图谱分析师** 是一套高精度、极度节省 Token 的代码结构分析技能。它通过解析代码抽象语法树（AST），提取符号骨架（接口、类、方法签名、字段、实体声明）、跨文件依赖与领域模型，以极小的上下文开销实现对代码库的纵深理解。
 
 ---
 
-## Analysis Pipeline (4-Step Flow)
+## 适用场景
+- **局部深度探索 (Deep Exploration)**：在无需读取成百上千行具体业务实现的前提下，快速掌握指定模块的内部设计。
+- **领域建模 (Domain Modeling)**：提取核心业务实体、值对象及数据库关系模型（ER 关系图）。
+- **重构影响面评估 (Refactoring Blast Radius)**：逆向追踪关键方法或类的上下游调用链与修改影响范围。
+- **AI 上下文压缩 (Context Compression)**：生成紧凑的符号骨架，作为输入注入到 `implementation_plan.md` 或 `GEMINI.md` 中。
+
+---
+
+## 四步分析流水线 (4-Step Flow)
 
 ```mermaid
 flowchart TD
-    A[Step 1: Symbol Skeleton Extraction] --> B[Step 2: Domain Entity & ER Extraction]
-    B --> C[Step 3: Call Graph & Reference Mapping]
-    C --> D[Step 4: Repo Map Synthesis & Indexing]
+    A["步骤 1: 符号骨架提取 (Signatures)"] --> B["步骤 2: 领域实体与 ER 建模"]
+    B --> C["步骤 3: 调用图与引用追踪"]
+    C --> D["步骤 4: 符号图谱合成与索引"]
 ```
 
-### Step 1: Symbol Skeleton Extraction
-Extract signatures and contract definitions while discarding method implementation bodies:
-- **Interfaces & Abstract Classes**: Public method signatures, generic parameters, return types.
-- **Service Interfaces**: Core business contract methods.
-- **DTOs / VO / Command Objects**: Key field names, data types, validation annotations (`@NotNull`, `@Valid`).
+### 步骤 1：符号骨架提取 (Symbol Skeleton Extraction)
+仅提取方法签名、接口契约与类型声明，主动忽略具体的函数体实现：
+- **接口与抽象类**：公有方法签名、泛型参数、返回值类型。
+- **服务契约接口 (Service Interfaces)**：核心业务契约方法定义。
+- **DTO / VO / 入参对象**：核心属性字段、类型、校验注解（如 `@NotNull`, `@Valid`）。
 
-#### Fast Shell / Ripgrep Recipes
+#### 常用高效 Ripgrep 提取命令
 ```bash
-# Java: Extract all Interface and Class signatures
+# Java: 提取所有 Interface、Class、Record 声明
 rg --no-heading --line-number 'public (interface|class|enum|record)\s+\w+'
 
-# Java: Extract Service interface methods
+# Java: 提取 Service 接口核心方法
 rg -A 2 'public interface \w+Service' src/
 
-# Go: Extract struct and interface signatures
+# Go: 提取 Struct 与 Interface 签名
 rg 'type \w+ (struct|interface)'
 
-# TypeScript / Python: Extract classes and type definitions
+# TypeScript / Python: 提取 Class 与 Type 定义
 rg '^(export )?(class|interface|type) \w+'
 ```
 
 ---
 
-### Step 2: Domain Entity & ER Modeling
-Identify aggregate roots, entities, and database mappings:
-1. Scan for ORM annotations:
+### 步骤 2：领域实体与 ER 建模 (Domain Entity & ER Modeling)
+识别聚合根、实体对象与数据库表映射关系：
+1. **扫描 ORM 注解**：
    - Java / MyBatis / JPA: `@TableName`, `@Entity`, `@Table`, `@Id`
    - Go (GORM): `gorm.Model`, `gorm:"..."`
    - Python / Django / SQLAlchemy: `models.Model`, `Base`
-2. Extract relationships:
-   - 1:1, 1:N, N:M associations and foreign key references.
-   - Status / Enum state fields and lifecycle transitions.
+2. **提取关联关系**：
+   - 梳理 1:1、1:N、N:M 关联与外键映射。
+   - 提取业务状态枚举字段及其生命周期流转。
 
 ---
 
-### Step 3: Call Graph & Reference Tracing
-Trace interactions across layers:
-1. **Entry to Service**: Which Controller actions invoke which Service methods.
-2. **Service to DAO/Repo**: Which Service methods query or mutate specific Tables/Mappers.
-3. **Cross-Service / Event Triggers**: Where domain events or asynchronous tasks are dispatched.
+### 步骤 3：调用图与引用追踪 (Call Graph & Reference Tracing)
+追踪跨层交互链路：
+1. **入口到服务层 (Entry -> Service)**：哪些 Controller / Handler 动作调用了哪个 Service 方法。
+2. **服务层到持久层 (Service -> DAO/Repo)**：哪些 Service 方法查询或操作了具体的表与 Mapper。
+3. **跨服务与异步事件**：在哪些位置触发了领域事件（Domain Event）或 MQ 消息派发。
 
 ---
 
-### Step 4: Repo Map Synthesis
+### 步骤 4：符号图谱合成 (Repo Map Synthesis)
 
-Assemble the findings into structured symbol map artifacts:
+将分析提炼的结果整合成结构化的符号地图文档：
 
 ```markdown
-# [Module Name] Repository Symbol Map
+# [模块名称] 核心符号与关系图谱
 
-## 1. Domain Entities & Value Objects (ER Model)
+## 1. 领域实体与值对象模型 (ER Model)
 ```mermaid
 classDiagram
     class ReceiverGroupEntity {
@@ -95,7 +95,7 @@ classDiagram
     ReceiverGroupEntity "1" --> "*" ReceiverEntity : contains
 ```
 
-## 2. Core Service Contracts & API Outline
+## 2. 核心服务契约与 API 大纲
 ### `ReceiverGroupService` (`com.rubikstack.alert.service.ReceiverGroupService`)
 - `page(ReceiverGroupPageQuery query): PageResult<ReceiverGroupVO>` — 分页查询接收组
 - `getById(Long id): ReceiverGroupVO` — 查询接收组详情
@@ -103,8 +103,8 @@ classDiagram
 - `update(ReceiverGroupVO vo): void` — 更新接收组配置
 - `deleteByIds(List<Long> ids): void` — 批量删除接收组
 
-## 3. Layer Call Graph
-`ReceiverGroupController` (REST)
+## 3. 分层调用链 (Call Graph)
+`ReceiverGroupController` (REST API)
  └── `ReceiverGroupRepository` / `ReceiverGroupService`
       ├── `ReceiverGroupMapper` (MyBatis -> `alert_receiver_group`)
       └── `ReceiverMapper` (MyBatis -> `alert_receiver`)
@@ -112,7 +112,7 @@ classDiagram
 
 ---
 
-## Token Efficiency Best Practices
-1. **Never read whole files for discovery**: Always grep / query method signatures first.
-2. **Compress boilerplate**: Omit standard getters/setters, `equals()`, and `hashCode()` methods.
-3. **Annotate key semantics**: Always retain transactional boundaries (`@Transactional`), caching (`@Cacheable`), and security annotations (`@PreAuthorize`).
+## Token 效能最佳实践
+1. **严禁盲目整文件通读**：在探索和定位时，始终先用 `grep_search` / `rg` 检索方法签名。
+2. **压缩样板代码**：主动忽略标准的 Getter/Setter、`equals()`、`hashCode()` 等模板方法。
+3. **保留核心语义注解**：在提取符号时，务必保留事务边界（`@Transactional`）、缓存标记（`@Cacheable`）和鉴权注解（`@PreAuthorize`）。

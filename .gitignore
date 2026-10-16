@@ -2,5 +2,7 @@
 /.agents/skills
 /docs/specs/
 /implementation_plan.md
-/task.md
 /walkthrough.md
+*.env
+.env
+.env.local

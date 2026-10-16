@@ -43,6 +43,9 @@ graph TD
    - 仅精准读取强相关类的 Symbol 签名声明（如 Interface 契约、类型定义），**严禁盲目读取大片无关文件的完整函数体实现**，规避上下文污染。
 3. **影响面评估**：本次修改会动到哪些模块？是否会破坏现有公共接口或数据库 Schema？
 4. **规范对齐**：验证当前的设计方案是否 100% 满足了所挂载规则模块（如安全、错误处理规范）的限制。
+5. **知识库与参考文档检索式消费规范 (Index-Before-Read via FTS5)**：
+   - 当需要参考外部个人知识库（`/Users/hexianghong/code/knowledgeBase`）或长篇技术文档（>200 行）时，**严禁盲目整篇全量加载**。
+   - 优先通过 `context-mode` 的 `ctx_search` 工具或 BM25 全文索引进行关键词切片检索；根据命中的关键 Snippet 获得线索后，按需按行号精读局部，杜绝上下文浪费。
 
 
 ### 步骤二：Skills 技能发现与复用
@@ -54,8 +57,10 @@ graph TD
   - **世界级产品设计规约 (Awesome Design MD)**：位于 [awesome-design-md/design-md](file:///Users/hexianghong/code/gemini-skills/skills/awesome-design-md/design-md/)。当涉及 UI 设计、前端界面重构、页面美化时，应检索相关品牌（如 `stripe`, `apple`, `supabase`, `vercel`）的设计指南，拒绝平庸设计。
 
 
-### 步骤三：MCP (Model Context Protocol) 规范调用
-- 当需要进行环境感知、文件查找或资源访问时，优先使用专用的 MCP 工具（如 Filesystem MCP、Database/Postgres MCP、Git MCP 等），避免通过 Terminal 直接运行低效的 `grep`、`find` 或 `cat`。
+### 步骤三：MCP (Model Context Protocol) 规范调用与上下文防护
+- 当需要进行环境感知、文件查找或资源访问时，优先使用专用的 MCP 工具（如 Filesystem MCP、Database/MySQL MCP、Context-Mode MCP 等），避免通过 Terminal 直接运行低效盲目的 `grep`、`find` 或 `cat`。
+- **大输出防护与防爆仓准则 (Context-Mode)**：
+  - 遇到未知大输出命令（如系统级大日志排障 `kubectl logs`、`journalctl`、海量测试输出堆栈、大文件解析）时，优先调用 `context-mode` MCP 工具（如 `ctx_execute`、`ctx_search`），将 Raw 数据隔离沙箱化，通过 SQLite FTS5 意图检索，杜绝上下文窗口打爆与会话失忆。
 - 如果存在数据库操作或 API 调用，首选使用 DB MCP 检索 Schema 信息，保证字段类型设计 100% 精确，拒绝凭空猜测。
 
 ### 步骤四：感知-行动-验证微循环 (Perception-Action-Verification Loop) 与 TDD 协议

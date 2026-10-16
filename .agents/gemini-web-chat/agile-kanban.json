@@ -1,0 +1,114 @@
+[
+  {
+    "id": "task-inspect-001",
+    "title": "健康巡检定时诊断任务接口开发",
+    "stage": "done",
+    "priority": "P0",
+    "assignee": "全栈开发专家",
+    "tag": "SRE / 诊断探活",
+    "summary": "研发、QA 验证与过程资产归档全部完成，看板流转至 Done 闭环",
+    "docLink": "docs/specs/implementation_plan.md",
+    "dod": [
+      "GET /api/inspection/health 输出健康评分",
+      "POST /api/inspection/run 支持手动即时诊断",
+      "POST /api/inspection/schedule 支持定时周期巡检与快照",
+      "测试用例 100% 验证通过"
+    ],
+    "createdAt": "2026-09-24T18:22:00.000Z",
+    "updatedAt": "2026-09-24T10:24:45.209Z",
+    "archived": true
+  },
+  {
+    "id": "task-001",
+    "title": "设计多角色工坊与提示词可视化联动机制",
+    "stage": "done",
+    "priority": "P0",
+    "assignee": "云原生架构师",
+    "tag": "架构设计 / UI",
+    "summary": "打通本地 Web 页面与工作区 GEMINI.md，实现角色一键热加载与 IDE 同步。",
+    "docLink": "automation-tools/gemini-web-chat/README.md",
+    "dod": [
+      "支持角色卡片选择",
+      "一键写入 GEMINI.md",
+      "IDE 原生 Chat 立即识别"
+    ],
+    "archived": true
+  },
+  {
+    "id": "task-002",
+    "title": "自动扫描并解析 .agents/skills 本地技能目录",
+    "stage": "done",
+    "priority": "P0",
+    "assignee": "全栈开发专家",
+    "tag": "自动化 / 元数据解析",
+    "summary": "动态扫描 .agents/skills 下 10 个角色目录，自动读取 SKILL.md 前言与角色定义。",
+    "docLink": ".agents/skills",
+    "dod": [
+      "自动解析 frontmatter",
+      "展示技能来源徽章",
+      "分类过滤器正常切换"
+    ],
+    "archived": true
+  },
+  {
+    "id": "task-003",
+    "title": "敏捷研发流程规范与全生命周期 SOP 制定",
+    "stage": "release",
+    "priority": "P1",
+    "assignee": "资深产品经理",
+    "tag": "敏捷流程 / 规范",
+    "summary": "梳理从需求挖掘、方案设计、TDD开发、QA验证到灰度发布的 6 阶段闭环 SOP 与 DoD。",
+    "docLink": "core-rules/agile-dev-lifecycle.md",
+    "dod": [
+      "定义各阶段 DoR 与 DoD",
+      "输出泳道图与流转规约",
+      "提供标准看板流转体系"
+    ]
+  },
+  {
+    "id": "task-004",
+    "title": "构建可视化敏捷研发看板与实时流转工作台",
+    "stage": "development",
+    "priority": "P0",
+    "assignee": "前端体验专家",
+    "tag": "看板可视化 / 交互",
+    "summary": "在 Web 工作台中提供 6 阶段看板视图，支持任务卡片一键推进、状态更新与详情查看。",
+    "docLink": "automation-tools/gemini-web-chat/public/index.html",
+    "dod": [
+      "6 阶段列展示",
+      "一键流转到下一阶段",
+      "任务卡片新建与编辑"
+    ]
+  },
+  {
+    "id": "task-005",
+    "title": "自动化测试用例覆盖与极端边界回归验证",
+    "stage": "testing",
+    "priority": "P1",
+    "assignee": "自动化测试专家",
+    "tag": "QA / 测试",
+    "summary": "针对 Node 服务端各 API 接口与代理隧道进行回归测试与断言校验。",
+    "docLink": "core-rules/INSTRUCTIONS.md",
+    "dod": [
+      "覆盖 API 异常状态码",
+      "测试网络超时与重试",
+      "生成 walkthrough 验证报告"
+    ]
+  },
+  {
+    "id": "task-006",
+    "title": "K8s Operator 自动化发布与金丝雀灰度流水线",
+    "stage": "backlog",
+    "priority": "P2",
+    "assignee": "SRE 应急排障大师",
+    "tag": "DevOps / SRE",
+    "summary": "接入 Prometheus / Grafana 业务指标监控，实现异常自动熔断与回滚。",
+    "docLink": "core-rules/cloud-native-rules.md",
+    "dod": [
+      "配置 Canary 路由",
+      "Prometheus 告警规则联动",
+      "自动回滚脚本就绪"
+    ],
+    "updatedAt": "2026-09-24T10:10:06.257Z"
+  }
+]

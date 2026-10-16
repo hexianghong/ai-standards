@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/hexianghong/code"
+      ]
+    },
+    "mysql-mcp": {
+      "command": "/Users/hexianghong/.local/share/fnm/aliases/default/bin/mysql-mcp",
+      "args": [],
+      "env": {
+        "DATABASE_URL": "mysql://root:Hxh123456@localhost:3306/iam"
+      }
+    },
+    "context-mode": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "context-mode"
+      ]
+    }
+  }
+}

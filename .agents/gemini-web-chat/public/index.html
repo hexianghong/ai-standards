@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity 研发效能与敏捷工作台</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+  <style>
+    :root {
+      --bg-base: #0f111a;
+      --bg-surface: #181a24;
+      --bg-card: #202330;
+      --bg-card-hover: #272a3b;
+      --bg-input: #12141e;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #6366f1;
+      --accent-gradient: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+      --accent-hover: #818cf8;
+      --border: #2d3348;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 2px 4px rgba(0,0,0,0.2);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+      --shadow-lg: 0 10px 25px rgba(0,0,0,0.4);
+    }
+
+    [data-theme="light"] {
+      --bg-base: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f1f5f9;
+      --bg-input: #f8fafc;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --accent: #4f46e5;
+      --accent-hover: #6366f1;
+      --border: #e2e8f0;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+      --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Header */
+    header {
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--accent-gradient);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      color: white;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-base);
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    .nav-tab {
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .nav-tab:hover { color: var(--text-main); }
+    .nav-tab.active {
+      background-color: var(--bg-surface);
+      color: var(--accent);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-main);
+      border-color: var(--accent);
+    }
+
+    /* Content Area */
+    main {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tab-pane {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .tab-pane.active {
+      display: flex;
+    }
+
+    /* Buttons & Inputs */
+    .btn {
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--bg-card); color: var(--text-main); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--bg-card-hover); border-color: var(--accent); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+    /* Kanban Board Layout */
+    .kanban-layout { display: flex; flex-direction: column; height: 100%; gap: 16px; }
+    .kanban-header { display: flex; justify-content: space-between; align-items: center; }
+    .kanban-progress-box { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-muted); }
+    .progress-track { width: 150px; height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden; }
+    .progress-bar { height: 100%; background: var(--accent-gradient); width: 0%; transition: width 0.3s ease; }
+
+    .kanban-board {
+      display: flex; gap: 16px; flex: 1; overflow-x: auto; padding-bottom: 8px;
+    }
+    .kanban-col {
+      flex: 1; min-width: 260px; max-width: 320px; background: var(--bg-surface);
+      border: 1px solid var(--border); border-radius: var(--radius-md); display: flex;
+      flex-direction: column; overflow: hidden;
+    }
+    .col-header {
+      padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex;
+      justify-content: space-between; align-items: center; font-weight: 600; font-size: 13px;
+    }
+    .col-count { background: var(--bg-input); padding: 2px 8px; border-radius: 10px; font-size: 11px; color: var(--text-muted); }
+    .col-cards { padding: 12px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+
+    .task-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+    }
+    .task-card:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: var(--shadow-lg); }
+    .task-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .task-title { font-weight: 600; font-size: 14px; color: var(--text-main); line-height: 1.4; }
+    .task-summary { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 4px 0; }
+    .task-meta { display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-top: 6px; }
+    .task-tag { background: rgba(99, 102, 241, 0.1); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+    .task-assignee { color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+    .task-dod-preview { font-size: 11px; color: var(--text-muted); background: var(--bg-input); padding: 4px 6px; border-radius: 4px; }
+    .task-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+    .btn-move-stage { font-size: 11px; padding: 3px 8px; border-radius: 4px; background: var(--accent); color: #fff; border: none; cursor: pointer; }
+    .btn-move-stage:hover { opacity: 0.9; }
+
+    /* Roles Grid */
+    .roles-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; }
+    .filter-chips { display: flex; gap: 6px; }
+    .filter-chip { padding: 6px 12px; border-radius: 20px; font-size: 12px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-muted); cursor: pointer; }
+    .filter-chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .search-box { display: flex; gap: 10px; align-items: center; flex: 1; max-width: 480px; }
+    .search-box input { flex: 1; padding: 7px 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-main); font-size: 13px; }
+
+    .roles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+    .role-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 12px; transition: all 0.2s ease; position: relative; }
+    .role-card:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: var(--shadow-lg); }
+    .role-card.active-role { border-color: var(--success); box-shadow: 0 0 0 1px var(--success); }
+    .role-card-header { display: flex; align-items: center; gap: 12px; }
+    .role-avatar { font-size: 28px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: var(--bg-surface); border-radius: 10px; }
+    .role-title-box h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-main); }
+    .role-tag-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--bg-surface); color: var(--text-muted); }
+    .role-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0; flex: 1; }
+    .card-bottom { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
+    .btn-activate { flex: 1; background: var(--accent); color: #fff; border: none; padding: 6px; border-radius: var(--radius-sm); cursor: pointer; }
+    .btn-activate:hover { opacity: 0.9; }
+
+    /* Chat Playground */
+    .chat-layout { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); overflow: hidden; }
+    .chat-header { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; user-select: text; }
+    .msg-bubble { display: flex; flex-direction: column; max-width: 85%; padding: 12px 16px; border-radius: var(--radius-md); font-size: 14px; line-height: 1.6; }
+    .msg-user { align-self: flex-end; background: var(--accent); color: white; border-bottom-right-radius: 2px; }
+    .msg-ai { align-self: flex-start; background: var(--bg-card); border: 1px solid var(--border); border-bottom-left-radius: 2px; }
+    .msg-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .msg-content { word-break: break-word; }
+    .msg-content pre { background: var(--bg-base); padding: 10px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+    .chat-input-box { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 10px; background: var(--bg-card); }
+    .chat-input-box textarea { flex: 1; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; color: var(--text-main); font-size: 13px; resize: none; height: 50px; }
+
+    /* Inspection */
+    .inspection-container { display: flex; flex-direction: column; gap: 20px; }
+    .score-card { display: flex; align-items: center; gap: 20px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
+    .score-circle { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; background: var(--bg-input); border: 3px solid var(--success); color: var(--success); }
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .metric-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .metric-val { font-size: 22px; font-weight: 700; color: var(--text-main); }
+    .metric-status { font-size: 12px; color: var(--text-muted); }
+
+    /* Docs Tab */
+    .docs-container { display: flex; flex-direction: column; height: 100%; gap: 16px; }
+    .docs-toolbar { display: flex; justify-content: space-between; align-items: center; }
+    .docs-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; overflow-y: auto; }
+    .doc-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; gap: 8px; transition: all 0.2s; }
+    .doc-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .doc-name { font-weight: 600; font-size: 14px; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
+    .doc-path { font-size: 11px; color: var(--text-muted); font-family: monospace; background: var(--bg-input); padding: 3px 6px; border-radius: 4px; word-break: break-all; }
+    .doc-meta { font-size: 11px; color: var(--text-dim); display: flex; justify-content: space-between; margin-top: 4px; }
+
+    /* Modal */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 100; }
+    .modal.active { display: flex; }
+    .modal-content { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 90%; max-width: 600px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); }
+    .modal-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 600; }
+    .modal-body { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+    .modal-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; background: var(--bg-card); }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+    .form-group input, .form-group textarea, .form-group select { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; color: var(--text-main); font-size: 13px; }
+    .btn-close { background: none; border: none; font-size: 20px; color: var(--text-muted); cursor: pointer; }
+    .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
+    .toast { background: var(--bg-card); border: 1px solid var(--accent); padding: 10px 16px; border-radius: var(--radius-sm); font-size: 13px; color: var(--text-main); box-shadow: var(--shadow-lg); animation: slideIn 0.2s ease; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">⚡</div>
+      <span>Antigravity 研发工作台</span>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-tab="playground">💬 对话测试</button>
+      <button class="nav-tab" data-tab="kanban">📊 敏捷看板</button>
+      <button class="nav-tab" data-tab="roles">🛠️ 技能清单</button>
+      <button class="nav-tab" data-tab="inspection">🩺 系统巡检</button>
+      <button class="nav-tab" data-tab="docs">📁 文档资产</button>
+    </div>
+    <div class="header-actions">
+      <button class="btn-icon" id="theme-btn" title="切换浅色/深色模式">🌓</button>
+      <button class="btn-icon" id="settings-btn" title="系统设置">⚙️</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Tab 1: Chat Playground -->
+    <div class="tab-pane active" id="pane-playground">
+      <div class="chat-layout">
+        <div class="chat-header">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:13px; color:var(--text-muted);">当前测试角色:</span>
+            <span id="chat-active-role-badge" style="font-weight:600; color:var(--accent);">🏗️ 云原生全栈架构师</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-sm btn-secondary" id="btn-export-chat-docs">💾 归档整场对话至 docs</button>
+            <button class="btn btn-sm btn-secondary" id="btn-clear-chat">🧹 清空记录</button>
+          </div>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="msg-bubble msg-ai">
+            <div class="msg-meta">
+              <span>🤖 工作台助手</span>
+              <span>就绪</span>
+            </div>
+            <div class="msg-content">你好！我是 Antigravity 研发效能助手。已加载工作区核心技能规约，支持敏捷看板流转、角色热激活与一键文档持久化至 docs。请在下方输入内容开始测试。</div>
+          </div>
+        </div>
+        <div class="chat-input-box">
+          <textarea id="chat-input" placeholder="输入测试消息，按 Enter 发送，Shift+Enter 换行..."></textarea>
+          <button class="btn btn-primary" id="btn-send-chat">发送</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Agile Kanban -->
+    <div class="tab-pane" id="pane-kanban">
+      <div class="kanban-layout">
+        <div class="kanban-header">
+          <div class="kanban-progress-box">
+            <span>敏捷迭代整体完成度:</span>
+            <div class="progress-track"><div class="progress-bar" id="stat-progress-bar"></div></div>
+            <span id="stat-progress-text" style="font-weight:600; color:var(--text-main);">0%</span>
+            <span style="margin-left: 10px;">(总任务: <b id="stat-total">0</b> | 开发中: <b id="stat-dev">0</b> | 已闭环: <b id="stat-done">0</b>)</span>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-kanban">🔄 刷新看板</button>
+            <button class="btn btn-primary btn-sm" id="btn-create-task">➕ 新建任务</button>
+          </div>
+        </div>
+        <div class="kanban-board" id="kanban-board">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Local Skills & Roles Workshop -->
+    <div class="tab-pane" id="pane-roles">
+      <div class="roles-toolbar">
+        <div class="filter-chips">
+          <button class="filter-chip active" data-filter="all">全部角色</button>
+          <button class="filter-chip" data-filter="skills">.agents 技能角色</button>
+          <button class="filter-chip" data-filter="preset">内置专家</button>
+          <button class="filter-chip" data-filter="custom">自定义角色</button>
+        </div>
+        <div class="search-box">
+          <input type="text" id="role-search" placeholder="🔍 搜索角色名称、职责或技能...">
+          <button class="btn btn-primary" id="btn-create-role">➕ 新建自定义角色</button>
+        </div>
+      </div>
+      <div class="roles-grid" id="roles-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Tab 4: System Inspection -->
+    <div class="tab-pane" id="pane-inspection">
+      <div class="inspection-container">
+        <div class="score-card">
+          <div class="score-circle" id="inspect-score-circle">--</div>
+          <div style="flex:1;">
+            <h2 id="inspect-score-title">系统健康检测与诊断引擎</h2>
+            <p id="inspect-score-desc" style="color:var(--text-muted); font-size:13px; margin:4px 0 8px 0;">实时监控宿主机负载、内存占用及 Node.js 事件循环延迟</p>
+            <span class="task-tag" id="inspect-status-badge">检测中...</span>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+              <span>巡检周期:</span>
+              <input type="number" id="inspect-interval-input" value="60" style="width:60px; padding:4px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); border-radius:4px;"> 秒
+              <button class="btn btn-secondary btn-sm" id="btn-set-interval">更新</button>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-run-inspect">⚡ 立即深度诊断</button>
+          </div>
+        </div>
+        <div class="metrics-grid" id="inspect-metrics-grid">
+          <!-- Populated by JS -->
+        </div>
+        <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
+          <h3 style="font-size:14px; margin-bottom:12px;">📋 诊断与巡检历史快照</h3>
+          <div id="inspect-history-list" style="display:flex; flex-direction:column; gap:8px;">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 5: Document Persistence Assets -->
+    <div class="tab-pane" id="pane-docs">
+      <div class="docs-container">
+        <div class="docs-toolbar">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-size:14px; font-weight:600;">📁 工作区研发文档库</span>
+            <span class="task-tag" id="docs-dir-badge">docs/</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-docs">🔄 刷新文档列表</button>
+        </div>
+        <div class="docs-list" id="docs-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Task Modal -->
+  <div class="modal" id="task-modal">
+    <div class="modal-content">
+      <div class="modal-head">
+        <span id="modal-task-title">➕ 新建敏捷任务</span>
+        <button class="btn-close" id="btn-close-task-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-task-id">
+        <div class="form-group">
+          <label>任务标题 *</label>
+          <input type="text" id="edit-task-title" placeholder="简短清晰地描述需求任务">
+        </div>
+        <div style="display:flex; gap:12px;">
+          <div class="form-group" style="flex:1;">
+            <label>流转阶段</label>
+            <select id="edit-task-stage">
+              <option value="backlog">📥 需求池 (Backlog)</option>
+              <option value="design">📐 方案设计 (Design)</option>
+              <option value="development">💻 敏捷开发 (Development)</option>
+              <option value="testing">🧪 质量验证 (Testing)</option>
+              <option value="release">🚀 远程发布 (Release)</option>
+              <option value="done">✅ 闭环完成 (Done)</option>
+            </select>
+          </div>
+          <div class="form-group" style="width:100px;">
+            <label>优先级</label>
+            <select id="edit-task-priority">
+              <option value="P0">P0 (紧急)</option>
+              <option value="P1" selected>P1 (重要)</option>
+              <option value="P2">P2 (普通)</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex; gap:12px;">
+          <div class="form-group" style="flex:1;">
+            <label>主要负责人</label>
+            <input type="text" id="edit-task-assignee" placeholder="例如：资深全栈工程师">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>所属标签 / 模块</label>
+            <input type="text" id="edit-task-tag" placeholder="例如：架构设计 / UI">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>关联文档或规格说明路径 (docLink)</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="edit-task-doc-link" placeholder="例如：docs/specs/implementation_plan.md" style="flex:1;">
+            <button class="btn btn-secondary btn-sm" id="btn-generate-spec" type="button" title="根据任务元数据自动生成架构方案文档">⚡ 自动生成规格</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>需求背景与价值阐述 (Summary)</label>
+          <textarea id="edit-task-summary" rows="3" placeholder="描述该任务要解决的核心问题与业务价值..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>验收标准 (Definition of Done, 每行一条)</label>
+          <textarea id="edit-task-dod" rows="3" placeholder="单元测试通过\n静态代码检查合规"></textarea>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" id="btn-cancel-task-modal">取消</button>
+        <button class="btn btn-primary" id="btn-submit-task">保存任务</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Role Edit Modal -->
+  <div class="modal" id="role-modal">
+    <div class="modal-content">
+      <div class="modal-head">
+        <span id="modal-role-title">➕ 新建自定义角色</span>
+        <button class="btn-close" id="btn-close-role-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-role-id">
+        <div style="display:flex; gap:12px;">
+          <div class="form-group" style="width:70px;">
+            <label>图标</label>
+            <input type="text" id="edit-role-icon" value="🤖" style="text-align:center;">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>角色名称 *</label>
+            <input type="text" id="edit-role-name" placeholder="例如：SRE 稳定性专家">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>专业标签</label>
+          <input type="text" id="edit-role-tag" placeholder="例如：云原生 / 混沌工程">
+        </div>
+        <div class="form-group">
+          <label>职责简介 (Summary)</label>
+          <input type="text" id="edit-role-summary" placeholder="简要描述角色的定位与特长">
+        </div>
+        <div class="form-group">
+          <label>系统提示词 (System Instructions)</label>
+          <textarea id="edit-role-prompt" rows="5" placeholder="设定角色的思维框架、回答规约与最佳实践..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>专属执行规则 (每行一条)</label>
+          <textarea id="edit-role-rules" rows="3" placeholder="强制使用显式错误处理\n严格遵守安全红线"></textarea>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" id="btn-cancel-role-modal">取消</button>
+        <button class="btn btn-primary" id="btn-submit-role">保存角色</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Preview Modal -->
+  <div class="modal" id="doc-preview-modal">
+    <div class="modal-content" style="max-width:800px;">
+      <div class="modal-head">
+        <span id="preview-doc-title">📄 文档在线预览</span>
+        <button class="btn-close" id="btn-close-doc-preview">&times;</button>
+      </div>
+      <div class="modal-body" style="user-select:text;">
+        <div id="preview-doc-content" class="msg-content" style="background:var(--bg-input); padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border); overflow-y:auto; max-height:60vh;">
+          加载中...
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" id="btn-copy-doc-path">📋 复制绝对路径</button>
+        <button class="btn btn-primary" id="btn-close-preview-btn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal" id="settings-modal">
+    <div class="modal-content">
+      <div class="modal-head">
+        <span>⚙️ 工作台设置</span>
+        <button class="btn-close" id="btn-close-settings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Google Gemini API Key</label>
+          <input type="password" id="setting-api-key" placeholder="AIzaSy...">
+        </div>
+        <div class="form-group">
+          <label>默认推理模型</label>
+          <select id="setting-model">
+            <option value="gemini-2.5-flash">gemini-2.5-flash (推荐: 极速高并发)</option>
+            <option value="gemini-2.5-pro">gemini-2.5-pro (强推理)</option>
+            <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>API 基础地址</label>
+          <input type="text" id="setting-base-url" placeholder="https://generativelanguage.googleapis.com">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" id="btn-cancel-settings">取消</button>
+        <button class="btn btn-primary" id="btn-save-settings">保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    // State
+    const state = {
+      activeTab: 'playground',
+      allRoles: [],
+      activeRoleId: 'architect',
+      kanbanTasks: [],
+      hiddenArchivedDone: true,
+      docs: [],
+      currentPreviewDoc: null
+    };
+
+    function showToast(msg, icon = 'ℹ️') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = `${icon} ${msg}`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Theme Toggle
+    const themeBtn = document.getElementById('theme-btn');
+    themeBtn.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+    if (localStorage.getItem('theme')) {
+      document.documentElement.setAttribute('data-theme', localStorage.getItem('theme'));
+    }
+
+    // Tabs Switch
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        const target = tab.getAttribute('data-tab');
+        state.activeTab = target;
+        document.getElementById(`pane-${target}`).classList.add('active');
+
+        if (target === 'kanban') loadKanban();
+        if (target === 'roles') loadRoles();
+        if (target === 'inspection') loadInspection();
+        if (target === 'docs') loadDocs();
+      });
+    });
+
+    // ==========================================
+    // 1. Chat Playground Logic
+    // ==========================================
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    const btnSendChat = document.getElementById('btn-send-chat');
+
+    function appendMessage(role, text) {
+      const bubble = document.createElement('div');
+      bubble.className = `msg-bubble msg-${role === 'user' ? 'user' : 'ai'}`;
+      const header = document.createElement('div');
+      header.className = 'msg-meta';
+      header.innerHTML = `<span>${role === 'user' ? '👤 我' : '🤖 ' + (state.activeRoleName || '助手')}</span>`;
+
+      if (role === 'ai') {
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn btn-secondary btn-sm';
+        saveBtn.style.padding = '1px 6px';
+        saveBtn.style.fontSize = '11px';
+        saveBtn.textContent = '💾 存为文档';
+        saveBtn.onclick = () => saveAiMessageToDoc(text);
+        header.appendChild(saveBtn);
+      }
+
+      const content = document.createElement('div');
+      content.className = 'msg-content';
+      content.innerHTML = marked.parse(text);
+      content.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+
+      bubble.appendChild(header);
+      bubble.appendChild(content);
+      chatMessages.appendChild(bubble);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      return content;
+    }
+
+    async function sendChat() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+      chatInput.value = '';
+
+      appendMessage('user', text);
+      const aiContentEl = appendMessage('ai', '正在思考中...');
+
+      try {
+        const apiKey = localStorage.getItem('gemini_api_key') || '';
+        const model = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
+        const baseUrl = localStorage.getItem('gemini_base_url') || '';
+
+        const activeRoleObj = state.allRoles.find(r => r.id === state.activeRoleId);
+        const systemPrompt = activeRoleObj ? activeRoleObj.systemPrompt : '';
+
+        const res = await fetch('/api/chat/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            apiKey,
+            model,
+            baseUrl,
+            systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
+            contents: [{ role: 'user', parts: [{ text }] }]
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          aiContentEl.innerHTML = `<span style="color:var(--danger)">请求异常: ${errData.error?.message || res.statusText}</span>`;
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let fullText = '';
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              if (jsonStr === '[DONE]') continue;
+              try {
+                const chunk = JSON.parse(jsonStr);
+                const partText = chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                fullText += partText;
+                aiContentEl.innerHTML = marked.parse(fullText);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+              } catch (e) {}
+            }
+          }
+        }
+        aiContentEl.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+      } catch (err) {
+        aiContentEl.innerHTML = `<span style="color:var(--danger)">网络异常: ${err.message}</span>`;
+      }
+    }
+
+    btnSendChat.addEventListener('click', sendChat);
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChat();
+      }
+    });
+
+    document.getElementById('btn-clear-chat').addEventListener('click', () => {
+      chatMessages.innerHTML = '';
+      showToast('对话记录已清空');
+    });
+
+    document.getElementById('btn-export-chat-docs').addEventListener('click', async () => {
+      const bubbles = document.querySelectorAll('.msg-bubble');
+      if (bubbles.length === 0) return alert('当前没有对话内容可保存');
+
+      let markdown = `# 💬 Gemini 研发对话归档\n\n- **归档时间**: ${new Date().toLocaleString()}\n- **测试角色**: ${state.activeRoleName || '通用助手'}\n\n---\n\n`;
+      bubbles.forEach(b => {
+        const isUser = b.classList.contains('msg-user');
+        const text = b.querySelector('.msg-content').textContent;
+        markdown += `### ${isUser ? '👤 用户问题' : '🤖 AI 回答'}\n\n${text}\n\n`;
+      });
+
+      const filename = `chat-session-${Date.now().toString(36)}.md`;
+      const res = await fetch('/api/docs/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, content: markdown, subDir: 'chats' })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`整场对话已归档至 ${data.relPath}`, '💾');
+      } else {
+        alert('保存失败: ' + data.error?.message);
+      }
+    });
+
+    async function saveAiMessageToDoc(content) {
+      const title = prompt('请输入文档保存文件名（默认自动存放至 docs/notes/）', 'note-' + Date.now().toString(36));
+      if (!title) return;
+      const res = await fetch('/api/docs/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: title, content, subDir: 'notes' })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`已成功保存至 ${data.relPath}`, '📄');
+      } else {
+        alert('保存失败: ' + data.error?.message);
+      }
+    }
+
+    // ==========================================
+    // 2. Agile Kanban Logic
+    // ==========================================
+    async function loadKanban() {
+      try {
+        const res = await fetch('/api/kanban');
+        const data = await res.json();
+        state.kanbanStages = data.stages || [];
+        state.kanbanTasks = data.tasks || [];
+        renderKanban();
+      } catch (err) {
+        console.error('加载看板失败:', err);
+      }
+    }
+
+    function renderKanban() {
+      const board = document.getElementById('kanban-board');
+      board.innerHTML = '';
+
+      const tasks = state.kanbanTasks;
+      const total = tasks.length;
+      const doneTasks = tasks.filter(t => t.stage === 'done');
+      const doneCount = doneTasks.length;
+      const devCount = tasks.filter(t => t.stage === 'development').length;
+      const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-dev').textContent = devCount;
+      document.getElementById('stat-done').textContent = doneCount;
+      document.getElementById('stat-progress-bar').style.width = percent + '%';
+      document.getElementById('stat-progress-text').textContent = percent + '%';
+
+      state.kanbanStages.forEach((stage, sIdx) => {
+        const col = document.createElement('div');
+        col.className = 'kanban-col';
+
+        let colTasks = tasks.filter(t => t.stage === stage.id);
+        const archivedDoneCount = stage.id === 'done' ? colTasks.filter(t => t.archived).length : 0;
+
+        if (stage.id === 'done' && state.hiddenArchivedDone) {
+          colTasks = colTasks.filter(t => !t.archived);
+        }
+
+        const nextStage = state.kanbanStages[sIdx + 1];
+
+        // Column Header
+        let toggleArchiveBtn = '';
+        if (stage.id === 'done' && archivedDoneCount > 0) {
+          toggleArchiveBtn = `<button id="btn-toggle-archived" style="background:none; border:none; color:var(--accent); font-size:11px; cursor:pointer;">[${state.hiddenArchivedDone ? '📦 已归档(' + archivedDoneCount + ')' : '👁️ 隐藏已归档'}]</button>`;
+        }
+
+        col.innerHTML = `
+          <div class="col-header">
+            <span>${stage.name}</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              ${toggleArchiveBtn}
+              <span class="col-count">${colTasks.length}</span>
+            </div>
+          </div>
+          <div class="col-cards" id="cards-${stage.id}"></div>
+        `;
+
+        const cardsContainer = col.querySelector('.col-cards');
+
+        colTasks.forEach(task => {
+          const card = document.createElement('div');
+          card.className = 'task-card';
+          card.innerHTML = `
+            <div class="task-card-header">
+              <span class="task-title">${task.title}</span>
+              <span class="task-tag" style="${task.priority === 'P0' ? 'color:var(--danger); border-color:var(--danger)' : ''}">${task.priority || 'P1'}</span>
+            </div>
+            ${task.summary ? `<p class="task-summary">${task.summary}</p>` : ''}
+            <div class="task-meta">
+              <span class="task-tag">${task.tag || '通用'}</span>
+              <span class="task-assignee">👤 ${task.assignee || '未分配'}</span>
+            </div>
+            ${task.docLink ? `<div style="font-size:11px; color:var(--text-muted); cursor:pointer;" class="doc-link-item">📄 ${task.docLink}</div>` : ''}
+            <div class="task-actions">
+              <button class="btn btn-secondary btn-sm btn-edit-task">✏️ 编辑</button>
+              ${nextStage ? `<button class="btn-move-stage">推进至 ${nextStage.name.split(' ')[0]} ➔</button>` : '<span style="font-size:11px; color:var(--success);">✅ 闭环达成</span>'}
+            </div>
+          `;
+
+          card.querySelector('.btn-edit-task').onclick = () => openEditTaskModal(task);
+          if (nextStage) {
+            card.querySelector('.btn-move-stage').onclick = () => moveTaskStage(task.id, nextStage.id);
+          }
+          if (task.docLink) {
+            card.querySelector('.doc-link-item').onclick = () => previewDocByPath(task.docLink);
+          }
+          cardsContainer.appendChild(card);
+        });
+
+        if (stage.id === 'done' && col.querySelector('#btn-toggle-archived')) {
+          col.querySelector('#btn-toggle-archived').onclick = () => {
+            state.hiddenArchivedDone = !state.hiddenArchivedDone;
+            renderKanban();
+          };
+        }
+
+        board.appendChild(col);
+      });
+    }
+
+    async function moveTaskStage(taskId, targetStage) {
+      try {
+        const res = await fetch('/api/kanban/move', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskId, targetStage })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || '流转成功', '🔄');
+          loadKanban();
+        } else {
+          alert('流转失败: ' + data.error?.message);
+        }
+      } catch (err) {
+        alert('请求失败: ' + err.message);
+      }
+    }
+
+    // Task Modal
+    const taskModal = document.getElementById('task-modal');
+    document.getElementById('btn-create-task').onclick = () => {
+      document.getElementById('modal-task-title').textContent = '➕ 新建敏捷任务';
+      document.getElementById('edit-task-id').value = '';
+      document.getElementById('edit-task-title').value = '';
+      document.getElementById('edit-task-stage').value = 'backlog';
+      document.getElementById('edit-task-priority').value = 'P1';
+      document.getElementById('edit-task-assignee').value = '资深全栈工程师';
+      document.getElementById('edit-task-tag').value = '功能开发';
+      document.getElementById('edit-task-doc-link').value = '';
+      document.getElementById('edit-task-summary').value = '';
+      document.getElementById('edit-task-dod').value = '单元测试验证通过\n代码无 Lint 报错\n完成真实回归测试';
+      taskModal.classList.add('active');
+    };
+
+    function openEditTaskModal(task) {
+      document.getElementById('modal-task-title').textContent = `✏️ 任务详情: ${task.title}`;
+      document.getElementById('edit-task-id').value = task.id;
+      document.getElementById('edit-task-title').value = task.title;
+      document.getElementById('edit-task-stage').value = task.stage || 'backlog';
+      document.getElementById('edit-task-priority').value = task.priority || 'P1';
+      document.getElementById('edit-task-assignee').value = task.assignee || '';
+      document.getElementById('edit-task-tag').value = task.tag || '';
+      document.getElementById('edit-task-doc-link').value = task.docLink || '';
+      document.getElementById('edit-task-summary').value = task.summary || '';
+      document.getElementById('edit-task-dod').value = (task.dod || []).join('\n');
+      taskModal.classList.add('active');
+    }
+
+    document.getElementById('btn-close-task-modal').onclick = () => taskModal.classList.remove('active');
+    document.getElementById('btn-cancel-task-modal').onclick = () => taskModal.classList.remove('active');
+
+    document.getElementById('btn-generate-spec').onclick = async () => {
+      const title = document.getElementById('edit-task-title').value.trim();
+      const id = document.getElementById('edit-task-id').value || 'task-' + Date.now().toString(36);
+      if (!title) return alert('请先输入任务标题');
+
+      const template = `# 📐 需求设计与规格方案 (Implementation Spec)
+
+## 1. 需求背景与价值定位
+> ${document.getElementById('edit-task-summary').value.trim() || '明确业务目标与价值闭环'}
+
+## 2. 架构设计与交互契约
+- **任务编号**: \`${id}\`
+- **任务标题**: **${title}**
+- **负责人**: ${document.getElementById('edit-task-assignee').value || '全栈开发专家'}
+
+## 3. 验收标准与交付准出 (DoD)
+${document.getElementById('edit-task-dod').value.split('\n').filter(Boolean).map(d => `- [ ] ${d}`).join('\n')}
+`;
+      const filename = `spec-${id}.md`;
+      const res = await fetch('/api/docs/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, content: template, subDir: 'specs' })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById('edit-task-doc-link').value = data.relPath;
+        showToast(`已成功创建并绑定规格: ${data.relPath}`, '📐');
+      } else {
+        alert('生成失败: ' + data.error?.message);
+      }
+    };
+
+    document.getElementById('btn-submit-task').onclick = async () => {
+      const id = document.getElementById('edit-task-id').value;
+      const title = document.getElementById('edit-task-title').value.trim();
+      if (!title) return alert('请输入任务标题');
+
+      const stage = document.getElementById('edit-task-stage').value;
+      const taskData = {
+        id: id || ('task-' + Date.now().toString(36)),
+        title,
+        stage,
+        priority: document.getElementById('edit-task-priority').value,
+        assignee: document.getElementById('edit-task-assignee').value.trim(),
+        tag: document.getElementById('edit-task-tag').value.trim(),
+        docLink: document.getElementById('edit-task-doc-link').value.trim(),
+        summary: document.getElementById('edit-task-summary').value.trim(),
+        dod: document.getElementById('edit-task-dod').value.split('\n').map(s => s.trim()).filter(Boolean)
+      };
+
+      if (stage === 'done') {
+        taskData.archived = true;
+        taskData.archivedAt = new Date().toISOString();
+      } else {
+        taskData.archived = false;
+      }
+
+      try {
+        const res = await fetch('/api/kanban/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(taskData)
+        });
+        if (res.ok) {
+          taskModal.classList.remove('active');
+          showToast('任务保存成功', '💾');
+          loadKanban();
+        } else {
+          const data = await res.json();
+          alert('保存失败: ' + data.error?.message);
+        }
+      } catch (err) {
+        alert('网络异常: ' + err.message);
+      }
+    };
+
+    document.getElementById('btn-refresh-kanban').onclick = loadKanban;
+
+    // ==========================================
+    // 3. Roles & Skills Workshop
+    // ==========================================
+    async function loadRoles() {
+      try {
+        const res = await fetch('/api/roles');
+        const data = await res.json();
+        state.allRoles = data.allRoles || [];
+        state.activeRoleId = data.activeRoleId;
+        const activeObj = state.allRoles.find(r => r.id === state.activeRoleId);
+        if (activeObj) {
+          state.activeRoleName = activeObj.name;
+          document.getElementById('chat-active-role-badge').textContent = `${activeObj.icon || '🤖'} ${activeObj.name}`;
+        }
+        renderRoles();
+      } catch (err) {
+        console.error('加载角色失败:', err);
+      }
+    }
+
+    function renderRoles() {
+      const grid = document.getElementById('roles-grid');
+      grid.innerHTML = '';
+      const filter = window.currentRoleFilter || 'all';
+      const q = (document.getElementById('role-search')?.value || '').toLowerCase();
+
+      const filtered = state.allRoles.filter(r => {
+        if (filter === 'skills' && !r.isSkill) return false;
+        if (filter === 'preset' && (r.isSkill || r.isCustom)) return false;
+        if (filter === 'custom' && !r.isCustom) return false;
+        if (q && !r.name.toLowerCase().includes(q) && !(r.summary || '').toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      filtered.forEach(role => {
+        const card = document.createElement('div');
+        card.className = 'role-card' + (role.id === state.activeRoleId ? ' active-role' : '');
+        card.innerHTML = `
+          <div class="role-card-header">
+            <div class="role-avatar">${role.icon || '🤖'}</div>
+            <div class="role-title-box">
+              <h3>${role.name}</h3>
+              <span class="role-tag-badge">${role.tag || '通用'}</span>
+            </div>
+          </div>
+          <p class="role-desc">${role.summary || '暂无职责说明'}</p>
+          <div class="card-bottom">
+            <button class="btn-activate">${role.id === state.activeRoleId ? '✅ 当前激活' : '🚀 设为激活'}</button>
+          </div>
+        `;
+        card.querySelector('.btn-activate').onclick = () => activateRole(role);
+        grid.appendChild(card);
+      });
+    }
+
+    async function activateRole(role) {
+      try {
+        const res = await fetch('/api/roles/activate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roleId: role.id, name: role.name })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          state.activeRoleId = role.id;
+          state.activeRoleName = role.name;
+          document.getElementById('chat-active-role-badge').textContent = `${role.icon || '🤖'} ${role.name}`;
+          showToast(`已成功将【${role.name}】激活并写入工作区 GEMINI.md`, '🚀');
+          renderRoles();
+        } else {
+          alert('激活失败: ' + data.error?.message);
+        }
+      } catch (err) {
+        alert('请求失败: ' + err.message);
+      }
+    }
+
+    document.querySelectorAll('.filter-chip').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        window.currentRoleFilter = btn.getAttribute('data-filter');
+        renderRoles();
+      };
+    });
+    document.getElementById('role-search').oninput = renderRoles;
+
+    // Role modal
+    const roleModal = document.getElementById('role-modal');
+    document.getElementById('btn-create-role').onclick = () => {
+      document.getElementById('edit-role-id').value = '';
+      document.getElementById('edit-role-name').value = '';
+      document.getElementById('edit-role-tag').value = '';
+      document.getElementById('edit-role-summary').value = '';
+      document.getElementById('edit-role-prompt').value = '';
+      document.getElementById('edit-role-rules').value = '';
+      roleModal.classList.add('active');
+    };
+    document.getElementById('btn-close-role-modal').onclick = () => roleModal.classList.remove('active');
+    document.getElementById('btn-cancel-role-modal').onclick = () => roleModal.classList.remove('active');
+
+    document.getElementById('btn-submit-role').onclick = async () => {
+      const name = document.getElementById('edit-role-name').value.trim();
+      if (!name) return alert('请输入角色名称');
+
+      const roleData = {
+        id: document.getElementById('edit-role-id').value || ('custom-' + Date.now().toString(36)),
+        name,
+        icon: document.getElementById('edit-role-icon').value.trim() || '🤖',
+        tag: document.getElementById('edit-role-tag').value.trim() || '自定义角色',
+        summary: document.getElementById('edit-role-summary').value.trim(),
+        systemPrompt: document.getElementById('edit-role-prompt').value.trim(),
+        rules: document.getElementById('edit-role-rules').value.split('\n').map(s => s.trim()).filter(Boolean),
+        isCustom: true
+      };
+
+      const res = await fetch('/api/roles/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(roleData)
+      });
+      if (res.ok) {
+        roleModal.classList.remove('active');
+        showToast('自定义角色保存成功', '💾');
+        loadRoles();
+      } else {
+        const d = await res.json();
+        alert('保存失败: ' + d.error?.message);
+      }
+    };
+
+    // ==========================================
+    // 4. System Inspection Logic
+    // ==========================================
+    async function loadInspection() {
+      try {
+        const [healthRes, histRes] = await Promise.all([
+          fetch('/api/inspection/health').then(r => r.json()),
+          fetch('/api/inspection/history').then(r => r.json())
+        ]);
+        renderInspection(healthRes, histRes);
+      } catch (err) {
+        console.error('加载系统巡检失败:', err);
+      }
+    }
+
+    function renderInspection(health, history = []) {
+      const circle = document.getElementById('inspect-score-circle');
+      circle.textContent = health.score ?? '--';
+      const badge = document.getElementById('inspect-status-badge');
+      badge.textContent = health.status === 'healthy' ? '✅ 健康优异' : (health.status === 'warning' ? '⚠️ 轻微警告' : '❌ 严重异常');
+
+      const m = health.metrics || {};
+      const grid = document.getElementById('inspect-metrics-grid');
+      grid.innerHTML = `
+        <div class="metric-card">
+          <div class="metric-status">Node.js 事件循环延迟</div>
+          <div class="metric-val">${m.lagMs ?? '--'} ms</div>
+          <div class="metric-status">主线程响应灵敏度指标</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-status">系统物理内存占用</div>
+          <div class="metric-val">${m.memUsagePercent ?? '--'} %</div>
+          <div class="metric-status">宿主机物理 RAM 使用率</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-status">CPU 1分钟归一化负载</div>
+          <div class="metric-val">${m.normalizedLoad1m ?? '--'}</div>
+          <div class="metric-status">单核平均承载负荷</div>
+        </div>
+      `;
+
+      const list = document.getElementById('inspect-history-list');
+      list.innerHTML = '';
+      if (!history || history.length === 0) {
+        list.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">暂无巡检历史</div>';
+      } else {
+        history.slice(0, 10).forEach(h => {
+          const item = document.createElement('div');
+          item.style.display = 'flex';
+          item.style.justifyContent = 'space-between';
+          item.style.fontSize = '12px';
+          item.style.padding = '6px 8px';
+          item.style.background = 'var(--bg-card)';
+          item.style.borderRadius = '4px';
+          item.innerHTML = `
+            <span>⏱️ ${new Date(h.timestamp).toLocaleTimeString()} - 健康评分: <b>${h.score}分</b> (${h.status})</span>
+            <span style="color:var(--text-muted);">延迟: ${h.metrics?.eventLoop?.lagMs || 0}ms | 内存: ${h.metrics?.memory?.usagePercent || 0}%</span>
+          `;
+          list.appendChild(item);
+        });
+      }
+    }
+
+    document.getElementById('btn-run-inspect').onclick = async () => {
+      showToast('正在触发即时深度诊断...', '⚡');
+      const res = await fetch('/api/inspection/run', { method: 'POST' });
+      const report = await res.json();
+      showToast(`诊断完成！综合健康评分: ${report.score} 分`, '🩺');
+      loadInspection();
+    };
+
+    document.getElementById('btn-set-interval').onclick = async () => {
+      const val = parseInt(document.getElementById('inspect-interval-input').value, 10) || 60;
+      const res = await fetch('/api/inspection/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intervalSeconds: val })
+      });
+      const data = await res.json();
+      showToast(data.message || '定时周期已更新', '⏱️');
+    };
+
+    // ==========================================
+    // 5. Document Persistence Logic
+    // ==========================================
+    async function loadDocs() {
+      try {
+        const res = await fetch('/api/docs/list');
+        const data = await res.json();
+        document.getElementById('docs-dir-badge').textContent = data.docsDir || 'docs/';
+        state.docs = data.docs || [];
+        renderDocs();
+      } catch (err) {
+        console.error('加载文档失败:', err);
+      }
+    }
+
+    function renderDocs() {
+      const list = document.getElementById('docs-list');
+      list.innerHTML = '';
+      if (!state.docs || state.docs.length === 0) {
+        list.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">暂无沉淀文档，在任务流转至闭环完成时将自动生成，或在对话测试中点击归档按钮。</div>';
+        return;
+      }
+      state.docs.forEach(doc => {
+        const card = document.createElement('div');
+        card.className = 'doc-card';
+        card.innerHTML = `
+          <div class="doc-name">📄 ${doc.name}</div>
+          <div class="doc-path">${doc.path}</div>
+          <div class="doc-meta">
+            <span>大小: ${(doc.sizeBytes / 1024).toFixed(1)} KB</span>
+            <span>更新: ${new Date(doc.updatedAt).toLocaleDateString()}</span>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button class="btn btn-secondary btn-sm btn-preview-doc" style="flex:1;">👁️ 预览文档</button>
+            <button class="btn btn-secondary btn-sm btn-copy-path">📋 复制路径</button>
+          </div>
+        `;
+        card.querySelector('.btn-preview-doc').onclick = () => previewDocByPath(doc.path);
+        card.querySelector('.btn-copy-path').onclick = () => {
+          navigator.clipboard.writeText(doc.fullPath);
+          showToast('已复制文档绝对路径至剪贴板', '📋');
+        };
+        list.appendChild(card);
+      });
+    }
+
+    async function previewDocByPath(relPath) {
+      const previewModal = document.getElementById('doc-preview-modal');
+      const contentEl = document.getElementById('preview-doc-content');
+      document.getElementById('preview-doc-title').textContent = `📄 在线预览: ${relPath}`;
+      contentEl.innerHTML = '正在加载文档内容...';
+      previewModal.classList.add('active');
+
+      try {
+        const res = await fetch(`/${relPath}`);
+        if (res.ok) {
+          const text = await res.text();
+          contentEl.innerHTML = marked.parse(text);
+          contentEl.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+          state.currentPreviewDoc = relPath;
+        } else {
+          contentEl.innerHTML = `<span style="color:var(--danger)">无法读取文档: ${res.statusText}</span>`;
+        }
+      } catch (err) {
+        contentEl.innerHTML = `<span style="color:var(--danger)">加载异常: ${err.message}</span>`;
+      }
+    }
+
+    document.getElementById('btn-close-doc-preview').onclick = () => document.getElementById('doc-preview-modal').classList.remove('active');
+    document.getElementById('btn-close-preview-btn').onclick = () => document.getElementById('doc-preview-modal').classList.remove('active');
+    document.getElementById('btn-copy-doc-path').onclick = () => {
+      if (state.currentPreviewDoc) {
+        navigator.clipboard.writeText(state.currentPreviewDoc);
+        showToast('已复制路径', '📋');
+      }
+    };
+    document.getElementById('btn-refresh-docs').onclick = loadDocs;
+
+    // ==========================================
+    // 6. Settings Modal Logic
+    // ==========================================
+    const settingsModal = document.getElementById('settings-modal');
+    document.getElementById('settings-btn').onclick = () => {
+      document.getElementById('setting-api-key').value = localStorage.getItem('gemini_api_key') || '';
+      document.getElementById('setting-model').value = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
+      document.getElementById('setting-base-url').value = localStorage.getItem('gemini_base_url') || '';
+      settingsModal.classList.add('active');
+    };
+    document.getElementById('btn-close-settings').onclick = () => settingsModal.classList.remove('active');
+    document.getElementById('btn-cancel-settings').onclick = () => settingsModal.classList.remove('active');
+    document.getElementById('btn-save-settings').onclick = () => {
+      localStorage.setItem('gemini_api_key', document.getElementById('setting-api-key').value.trim());
+      localStorage.setItem('gemini_model', document.getElementById('setting-model').value);
+      localStorage.setItem('gemini_base_url', document.getElementById('setting-base-url').value.trim());
+      settingsModal.classList.remove('active');
+      showToast('设置配置已在浏览器本地持久化', '⚙️');
+    };
+
+    // Initial Load
+    loadRoles();
+  </script>
+</body>
+</html>

@@ -29,6 +29,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STANDARDS_DIR="$(dirname "$SCRIPT_DIR")"
 INSTRUCTIONS_PATH="${STANDARDS_DIR}/core-rules/INSTRUCTIONS.md"
 SKILLS_PATH="${STANDARDS_DIR}/stack-templates/skills"
+MCP_CONFIG_PATH="${STANDARDS_DIR}/.agents/mcp_config.json"
+WEB_CHAT_PATH="${STANDARDS_DIR}/.agents/gemini-web-chat"
 
 if [ ! -f "$INSTRUCTIONS_PATH" ]; then
     echo "❌ 错误: 找不到最高执行总控文件: $INSTRUCTIONS_PATH" >&2
@@ -134,6 +136,9 @@ cleanup_broken_links() {
         "./.clinerules"
         "./.github/copilot-instructions.md"
         "./.agents/skills"
+        "./.agents/mcp_config.json"
+        "./.agents/gemini-web-chat"
+        "./.agent"
     )
     for f in "${legacy_files[@]}"; do
         if [ -L "$f" ] && [ ! -e "$f" ]; then
@@ -163,6 +168,9 @@ exclude_generated_files() {
     echo "🛡️  正在更新 .gitignore 以排除生成的文件及本地过程资产..."
     update_gitignore "/GEMINI_GLOBAL.md"
     update_gitignore "/.agents/skills"
+    update_gitignore "/.agents/mcp_config.json"
+    update_gitignore "/.agents/gemini-web-chat"
+    update_gitignore "/.agent"
     update_gitignore "/docs/specs/"
     update_gitignore "/implementation_plan.md"
     update_gitignore "/task.md"
@@ -184,7 +192,23 @@ if [ -d "$SKILLS_PATH" ]; then
     echo "  🔹 ./.agents/skills -> $SKILLS_PATH"
 fi
 
-# 3. 自动初始化本地专属业务上下文 GEMINI.md (防覆盖，带技术栈联动)
+# 3. 挂载 Antigravity 工作区标准 MCP 配置 (.agents/mcp_config.json)
+if [ -f "$MCP_CONFIG_PATH" ]; then
+    echo "🔌 正在挂载 Antigravity 全局标准 MCP 配置..."
+    mkdir -p ./.agents
+    ln -sf "$MCP_CONFIG_PATH" ./.agents/mcp_config.json
+    echo "  🔹 ./.agents/mcp_config.json -> $MCP_CONFIG_PATH"
+fi
+
+# 4. 挂载 Antigravity Web Chat 效能与敏捷工作台 (.agents/gemini-web-chat)
+if [ -d "$WEB_CHAT_PATH" ]; then
+    echo "🛠️  正在挂载 Antigravity Web Chat 敏捷效能工作台..."
+    mkdir -p ./.agents
+    ln -sfn "$WEB_CHAT_PATH" ./.agents/gemini-web-chat
+    echo "  🔹 ./.agents/gemini-web-chat -> $WEB_CHAT_PATH"
+fi
+
+# 5. 自动初始化本地专属业务上下文 GEMINI.md (防覆盖，带技术栈联动)
 if [ ! -f "GEMINI.md" ]; then
     echo "📝 正在初始化项目专属业务上下文模板: GEMINI.md (已联动检测到的技术栈) ..."
     
@@ -208,6 +232,7 @@ $(echo -e "$STACK_DOC_LINK")
 - **运行/开发**: \`${RUN_CMD:-npm run dev}\`
 - **构建/测试**: \`${TEST_CMD:-npm test}\`
 - **原生技能库**: 已通过 \`.agents/skills/\` 挂载全局 SRE 排障、日志规范与依赖图分析技能。
+- **Web 效能工作台**: \`node .agents/gemini-web-chat/server.js\` (支持流式对话、敏捷看板、多角色热加载与文档自动持久化)
 - **本地自动化工具**: 如有内置代码生成器、迁移脚本，写在此处，AI 将优先复用。
 
 ## 4. 本地推荐 MCP 服务 (Recommended MCP Servers)
