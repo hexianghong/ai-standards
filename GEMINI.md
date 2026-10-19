@@ -29,13 +29,15 @@
 
 ## 3. 本地技能与自动化脚本 (Local Skills & Scripts)
 - **项目初始化与注入**: `./automation-tools/init-project.sh`
-  - 为已有或新项目一键注入全局 AI 规约软链接 (`GEMINI_GLOBAL.md`)、挂载 `.agents/skills` 技能库、`.agents/mcp_config.json` 标准 MCP 配置，以及挂载 `.agents/gemini-web-chat` 效能工作台。
+  - 为已有或新项目一键注入全局 AI 规约软链接 (`GEMINI_GLOBAL.md`)、挂载 `.agents/skills` 技能库、`.agents/mcp_config.json` 标准 MCP 配置、`.agents/gemini-web-chat` 效能工作台，以及挂载 `.agents/tools` 自动化脚本工具集。
 - **Web 研发效能与敏捷工作台**: `node .agents/gemini-web-chat/server.js`
   - 专为 Antigravity Simple Browser 设计，提供流式对话、多角色热加载、敏捷看板流转与文档一键持久化至 `docs/`。
 - **代码仓库大纲测绘**: `./automation-tools/gen-repo-map.sh .`
 - **过程资产自动归档**: `./automation-tools/archive-specs.sh <feature-name>`
 - **知识库全文索引构建**: `./automation-tools/index-knowledge.sh [dir]`
   - 为知识库与规约构建本地 SQLite FTS5 索引，赋能毫秒级 BM25 检索。
+- **AI 错误反馈与看板沉淀**: `./automation-tools/record-feedback.sh <project> <category> <summary>`
+  - 将各项目的 AI 踩坑或偏离案例沉淀至全局优化看板，支撑规约防御性重构。
 
 ---
 
@@ -49,6 +51,7 @@
 
 ## 5. 核心符号与规约入口 (Repository Map)
 - **最高执行总控**: [core-rules/INSTRUCTIONS.md](file:///Users/hexianghong/code/ai-standards/core-rules/INSTRUCTIONS.md)
+- **AI 错误反馈与优化看板**: [feedback/FEEDBACK_KANBAN.md](file:///Users/hexianghong/code/ai-standards/feedback/FEEDBACK_KANBAN.md)
 - **安全红线标准**: [core-rules/security-guardrails.md](file:///Users/hexianghong/code/ai-standards/core-rules/security-guardrails.md)
 - **云原生与 SRE 规约**: [core-rules/cloud-native-rules.md](file:///Users/hexianghong/code/ai-standards/core-rules/cloud-native-rules.md)
 - **技能插件体系**: [stack-templates/skills/](file:///Users/hexianghong/code/ai-standards/stack-templates/skills/)

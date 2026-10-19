@@ -10,17 +10,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STANDARDS_DIR="$(dirname "$SCRIPT_DIR")"
 
-# 优先查找当前工作区或 .agents 下的看板文件
-if [[ -f "${PWD}/.agents/gemini-web-chat/agile-kanban.json" ]]; then
-  KANBAN_FILE="${PWD}/.agents/gemini-web-chat/agile-kanban.json"
-elif [[ -f "${PWD}/.agents/agile-kanban.json" ]]; then
+# 优先查找当前项目本地专属看板文件 (彻底实现跨项目看板数据隔离)
+if [[ -f "${PWD}/.agents/agile-kanban.json" ]]; then
   KANBAN_FILE="${PWD}/.agents/agile-kanban.json"
-elif [[ -f "${STANDARDS_DIR}/.agents/gemini-web-chat/agile-kanban.json" ]]; then
-  KANBAN_FILE="${STANDARDS_DIR}/.agents/gemini-web-chat/agile-kanban.json"
-elif [[ -f "${SCRIPT_DIR}/gemini-web-chat/agile-kanban.json" ]]; then
-  KANBAN_FILE="${SCRIPT_DIR}/gemini-web-chat/agile-kanban.json"
+elif [[ -f "${PWD}/agile-kanban.json" ]]; then
+  KANBAN_FILE="${PWD}/agile-kanban.json"
+elif [[ -f "${STANDARDS_DIR}/.agents/agile-kanban.json" ]]; then
+  KANBAN_FILE="${STANDARDS_DIR}/.agents/agile-kanban.json"
 else
-  KANBAN_FILE="${STANDARDS_DIR}/.agents/gemini-web-chat/agile-kanban.json"
+  KANBAN_FILE="${PWD}/.agents/agile-kanban.json"
 fi
 
 if [[ $# -lt 2 ]]; then

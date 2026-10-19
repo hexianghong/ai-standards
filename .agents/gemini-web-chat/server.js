@@ -39,7 +39,29 @@ function resolveWorkspaceRoot() {
 
 const WORKSPACE_ROOT = resolveWorkspaceRoot();
 const GEMINI_MD_PATH = path.join(WORKSPACE_ROOT, 'GEMINI.md');
-const CUSTOM_ROLES_PATH = path.join(__dirname, 'custom-roles.json');
+
+function getCustomRolesPath() {
+  return path.join(WORKSPACE_ROOT, '.agents/custom-roles.json');
+}
+
+function getKanbanPath() {
+  // 1. 项目专属本地看板路径 (首选，彻底避免跨项目串数据)
+  const localKanban = path.join(WORKSPACE_ROOT, '.agents/agile-kanban.json');
+  const rootKanban = path.join(WORKSPACE_ROOT, 'agile-kanban.json');
+
+  if (fs.existsSync(localKanban)) return localKanban;
+  if (fs.existsSync(rootKanban)) return rootKanban;
+
+  // 2. 检查当前是否为 ai-standards 规约主仓库自身
+  const isMasterStandardsRepo = fs.existsSync(path.join(WORKSPACE_ROOT, 'core-rules/INSTRUCTIONS.md')) &&
+                               fs.existsSync(path.join(WORKSPACE_ROOT, 'stack-templates/skills'));
+  if (isMasterStandardsRepo && fs.existsSync(path.join(__dirname, 'agile-kanban.json'))) {
+    return path.join(__dirname, 'agile-kanban.json');
+  }
+
+  // 3. 其它业务项目：默认保存并创建在当前项目的 .agents/agile-kanban.json
+  return localKanban;
+}
 
 function getDocsDir() {
   const docCandidate = path.join(WORKSPACE_ROOT, 'doc');
@@ -68,19 +90,6 @@ function getSkillsDir() {
     if (fs.existsSync(dir)) return dir;
   }
   return path.join(WORKSPACE_ROOT, '.agents/skills');
-}
-
-function getKanbanPath() {
-  const candidates = [
-    path.join(WORKSPACE_ROOT, '.agents/agile-kanban.json'),
-    path.join(WORKSPACE_ROOT, '.agents/gemini-web-chat/agile-kanban.json'),
-    path.join(WORKSPACE_ROOT, 'agile-kanban.json'),
-    path.join(__dirname, 'agile-kanban.json')
-  ];
-  for (const file of candidates) {
-    if (fs.existsSync(file)) return file;
-  }
-  return path.join(__dirname, 'agile-kanban.json');
 }
 
 function loadEnv() {
@@ -137,13 +146,17 @@ const net = require('net');
 const tls = require('tls');
 
 function getProxyUrl() {
-  return process.env.HTTPS_PROXY || 
+  const envProxy = process.env.HTTPS_PROXY || 
          process.env.https_proxy || 
          process.env.HTTP_PROXY || 
          process.env.http_proxy || 
          process.env.ALL_PROXY || 
          process.env.all_proxy || 
          '';
+  if (envProxy && envProxy.includes('7890')) {
+    return 'http://127.0.0.1:7897';
+  }
+  return envProxy || 'http://127.0.0.1:7897';
 }
 
 function createTunnelAgent(proxyUrlStr) {
@@ -402,9 +415,10 @@ function getAgentSkills() {
 }
 
 function getCustomRoles() {
-  if (fs.existsSync(CUSTOM_ROLES_PATH)) {
+  const p = getCustomRolesPath();
+  if (fs.existsSync(p)) {
     try {
-      return JSON.parse(fs.readFileSync(CUSTOM_ROLES_PATH, 'utf-8'));
+      return JSON.parse(fs.readFileSync(p, 'utf-8'));
     } catch (e) {
       return [];
     }
@@ -413,7 +427,12 @@ function getCustomRoles() {
 }
 
 function saveCustomRoles(roles) {
-  fs.writeFileSync(CUSTOM_ROLES_PATH, JSON.stringify(roles, null, 2), 'utf-8');
+  const p = getCustomRolesPath();
+  const parent = path.dirname(p);
+  if (!fs.existsSync(parent)) {
+    try { fs.mkdirSync(parent, { recursive: true }); } catch (e) {}
+  }
+  fs.writeFileSync(p, JSON.stringify(roles, null, 2), 'utf-8');
 }
 
 function parseActiveRoleFromGeminiMd() {
@@ -662,6 +681,29 @@ const server = http.createServer((req, res) => {
     });
   }
 
+  // Read document content & metadata
+  if (pathname === '/api/docs/read' && req.method === 'GET') {
+    const targetPath = parsedUrl.query.path;
+    if (!targetPath) return sendJson(res, 400, { error: { message: '缺少 path 参数' } });
+    let fullPath = path.isAbsolute(targetPath) ? targetPath : path.join(WORKSPACE_ROOT, targetPath);
+    if (!fs.existsSync(fullPath)) {
+      fullPath = path.join(getDocsDir(), targetPath.replace(/^\/docs?\//, ''));
+    }
+    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      const stat = fs.statSync(fullPath);
+      return sendJson(res, 200, {
+        success: true,
+        content,
+        fullPath,
+        relPath: path.relative(WORKSPACE_ROOT, fullPath),
+        sizeBytes: stat.size,
+        updatedAt: stat.mtime.toISOString()
+      });
+    }
+    return sendJson(res, 404, { error: { message: `文档不存在: ${targetPath}` } });
+  }
+
   if (pathname === '/api/docs/save' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -683,6 +725,35 @@ const server = http.createServer((req, res) => {
         fs.writeFileSync(fullPath, content, 'utf-8');
         const relPath = path.relative(WORKSPACE_ROOT, fullPath);
         console.log(`[Document Persistence] 📄 文档已持久化落盘: ${relPath}`);
+
+        // 如果传递了关联任务 ID，自动将该文档关联至任务资产库 (Lifecycle Asset Chain)
+        const { taskId, stage = 'design', stageName = '过程资产' } = JSON.parse(body || '{}');
+        if (taskId) {
+          try {
+            const tasks = getKanbanTasks();
+            const targetTask = tasks.find(t => t.id === taskId);
+            if (targetTask) {
+              targetTask.assets = targetTask.assets || [];
+              if (!targetTask.assets.some(a => a.path === relPath)) {
+                targetTask.assets.push({
+                  stage,
+                  stageName,
+                  name: safeFilename,
+                  path: relPath,
+                  createdAt: new Date().toISOString()
+                });
+              }
+              if (!targetTask.docLink) {
+                targetTask.docLink = relPath;
+              }
+              saveKanbanTasks(tasks);
+              console.log(`[Agile Kanban] 🔗 文档 [${safeFilename}] 已自动挂接至任务 [${targetTask.title}] 资产链条`);
+            }
+          } catch (e) {
+            console.warn('[Agile Kanban] 自动挂接任务资产失败:', e.message);
+          }
+        }
+
         return sendJson(res, 200, {
           success: true,
           relPath,
@@ -741,13 +812,44 @@ const server = http.createServer((req, res) => {
       const fullPath = path.join(completedDir, filename);
       const relPath = path.relative(WORKSPACE_ROOT, fullPath);
 
+      // 初始化并聚合全生命周期资产
+      task.assets = task.assets || [];
+      if (task.docLink && !task.assets.some(a => a.path === task.docLink)) {
+        task.assets.unshift({
+          stage: 'design',
+          stageName: '📐 需求/设计规格 (PRD/Spec)',
+          name: path.basename(task.docLink),
+          path: task.docLink,
+          createdAt: task.createdAt || new Date().toISOString()
+        });
+      }
+
+      // 将本次生成的完成记录自动推入资产列表
+      const existingDoneAsset = task.assets.find(a => a.path === relPath);
+      if (!existingDoneAsset) {
+        task.assets.push({
+          stage: 'done',
+          stageName: '🎉 闭环完成落地报告 (Completion Record)',
+          name: filename,
+          path: relPath,
+          createdAt: new Date().toISOString()
+        });
+      }
+
       const dodItems = (task.dod && task.dod.length > 0)
         ? task.dod.map(d => `- [x] **${d}** (已验证并通过)`).join('\n')
         : '- [x] **核心业务逻辑开发与单元测试验证通过**\n- [x] **静态代码检查与安全红线合规**\n- [x] **全流程交付件验证通过**';
 
-      const priorDocSection = task.docLink
-        ? `\n- **前置设计/规格说明**: [${task.docLink}](file://${path.join(WORKSPACE_ROOT, task.docLink)})`
-        : '';
+      // 渲染全生命周期过程资产矩阵表格
+      let assetTableRows = '';
+      if (task.assets && task.assets.length > 0) {
+        assetTableRows = task.assets.map(a => {
+          const absDocUrl = `file://${path.join(WORKSPACE_ROOT, a.path)}`;
+          return `| ${a.stageName || a.stage} | **${a.name}** | [\`${a.path}\`](${absDocUrl}) | ${a.createdAt ? new Date(a.createdAt).toLocaleString() : '已归档'} |`;
+        }).join('\n');
+      } else {
+        assetTableRows = `| 闭环落地 | **${filename}** | [\`${relPath}\`](file://${fullPath}) | ${new Date().toLocaleString()} |`;
+      }
 
       const content = `# 🎉 敏捷研发任务闭环落地报告 (Completion Record)
 
@@ -759,7 +861,7 @@ const server = http.createServer((req, res) => {
 - **任务优先级**: \`${task.priority || 'P1'}\`
 - **所属标签/模块**: \`${task.tag || '通用'}\`
 - **创建时间**: ${task.createdAt || 'N/A'}
-- **闭环归档时间**: ${task.updatedAt || new Date().toISOString()}${priorDocSection}
+- **闭环归档时间**: ${task.updatedAt || new Date().toISOString()}
 
 ---
 
@@ -773,14 +875,23 @@ ${dodItems}
 
 ---
 
-## 4. 资产沉淀与长效追踪 (Traceability)
-- **自动归档路径**: \`${relPath}\`
+## 4. 全生命周期过程资产链条 (Lifecycle Asset Chain)
+> 本需求在研发推进全周期（需求设计 ➔ 架构评审 ➔ 敏捷开发 ➔ 质量验证 ➔ 闭环落地）中沉淀的所有阶段性资产文档已自动汇总于此，点击可直接在 IDE 或全景工作台内溯源审查：
+
+| 流转阶段 | 交付资产名称 | 相对路径与溯源链接 | 归档时间 |
+| :--- | :--- | :--- | :--- |
+${assetTableRows}
+
+---
+
+## 5. 资产沉淀与长效追踪 (Traceability)
+- **主闭环归档路径**: \`${relPath}\`
 - **执行规约总控**: [GEMINI_GLOBAL.md](file://${path.join(WORKSPACE_ROOT, 'GEMINI_GLOBAL.md')})
-- **归档说明**: 本文档由 Antigravity 敏捷看板流转至 \`done\` 闭环阶段时由系统自动静默落地，确保研发过程资产可回溯、可审计。
+- **长效维护说明**: 本文档由 Antigravity 敏捷看板在需求闭环时自动生成，已对所有前置研发过程文档建立双向引用，确保审计与资产溯源闭环。
 `;
 
       fs.writeFileSync(fullPath, content, 'utf-8');
-      console.log(`[Agile Kanban] 🏛️ 任务 [${task.title}] 闭环完成文档已自动静默落地: ${relPath}`);
+      console.log(`[Agile Kanban] 🏛️ 任务 [${task.title}] 闭环完成文档及全流程资产链已自动静默落地: ${relPath}`);
       task.completedDocLink = relPath;
       if (!task.docLink) {
         task.docLink = relPath;
@@ -837,6 +948,41 @@ ${dodItems}
     return;
   }
 
+  // Archive / Unarchive task endpoint
+  if (pathname === '/api/kanban/archive' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { taskId, unarchive = false } = JSON.parse(body || '{}');
+        const tasks = getKanbanTasks();
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) {
+          return sendJson(res, 404, { error: { message: '任务不存在' } });
+        }
+        if (unarchive) {
+          task.archived = false;
+        } else {
+          task.stage = 'done';
+          task.archived = true;
+          task.archivedAt = new Date().toISOString();
+          const docRel = autoGenerateDoneDocument(task);
+          if (docRel) task.completedDocLink = docRel;
+        }
+        saveKanbanTasks(tasks);
+        console.log(`[Agile Kanban] 📦 任务 [${task.title}] ${unarchive ? '取消归档' : '已归档'}`);
+        return sendJson(res, 200, {
+          success: true,
+          task,
+          message: unarchive ? '任务已恢复至活跃列表' : '🎉 任务已成功归档并生成落地文档！'
+        });
+      } catch (err) {
+        return sendJson(res, 500, { error: { message: err.message } });
+      }
+    });
+    return;
+  }
+
   // Create / Update task
   if (pathname === '/api/kanban/save' && req.method === 'POST') {
     let body = '';
@@ -878,7 +1024,260 @@ ${dodItems}
     });
     return;
   }
-  // Streaming Gemini Chat API Proxy
+
+  // Attach Document Asset to a Kanban Task
+  if (pathname === '/api/kanban/attach-asset' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { taskId, asset } = JSON.parse(body || '{}');
+        if (!taskId || !asset || !asset.path) {
+          return sendJson(res, 400, { error: { message: 'taskId 和 asset.path 不能为空' } });
+        }
+        const tasks = getKanbanTasks();
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) {
+          return sendJson(res, 404, { error: { message: '目标任务不存在' } });
+        }
+        task.assets = task.assets || [];
+        const existingIdx = task.assets.findIndex(a => a.path === asset.path);
+        const assetItem = {
+          stage: asset.stage || task.stage || 'design',
+          stageName: asset.stageName || '过程交付件',
+          name: asset.name || path.basename(asset.path),
+          path: asset.path,
+          createdAt: asset.createdAt || new Date().toISOString()
+        };
+        if (existingIdx >= 0) {
+          task.assets[existingIdx] = { ...task.assets[existingIdx], ...assetItem };
+        } else {
+          task.assets.push(assetItem);
+        }
+        if (!task.docLink) task.docLink = asset.path;
+        task.updatedAt = new Date().toISOString();
+        saveKanbanTasks(tasks);
+        console.log(`[Agile Kanban] 📎 资产 [${assetItem.name}] 已成功挂载至任务 [${task.title}]`);
+        return sendJson(res, 200, { success: true, task, message: '过程资产关联成功！' });
+      } catch (err) {
+        return sendJson(res, 500, { error: { message: err.message } });
+      }
+    });
+    return;
+  }
+
+  // Batch Create Tasks (Prompt to Kanban)
+  if (pathname === '/api/kanban/batch-create' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { tasks: incomingTasks, docLink = '', targetStage = 'backlog' } = JSON.parse(body || '{}');
+        if (!Array.isArray(incomingTasks) || incomingTasks.length === 0) {
+          return sendJson(res, 400, { error: { message: '待注入任务列表不能为空' } });
+        }
+
+        const currentTasks = getKanbanTasks();
+        const createdTasks = [];
+
+        incomingTasks.forEach(item => {
+          if (!item.title || !item.title.trim()) return;
+          const taskId = 'task-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+          const effectiveDoc = (item.docLink || docLink || '').trim();
+          const initialAssets = [];
+          if (effectiveDoc) {
+            initialAssets.push({
+              stage: 'design',
+              stageName: '📐 需求/设计规格 (PRD)',
+              name: path.basename(effectiveDoc),
+              path: effectiveDoc,
+              createdAt: new Date().toISOString()
+            });
+          }
+
+          const newTask = {
+            id: taskId,
+            title: item.title.trim(),
+            summary: (item.summary || '').trim(),
+            stage: targetStage || item.stage || 'backlog',
+            priority: item.priority || 'P1',
+            assignee: (item.assignee || '资深全栈工程师').trim(),
+            tag: (item.tag || '需求故事').trim(),
+            docLink: effectiveDoc,
+            assets: item.assets || initialAssets,
+            dod: Array.isArray(item.dod) ? item.dod.filter(Boolean) : ['核心业务逻辑实现与测试通过'],
+            completedDods: [],
+            archived: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          createdTasks.push(newTask);
+        });
+
+        if (createdTasks.length === 0) {
+          return sendJson(res, 400, { error: { message: '有效任务列表为空' } });
+        }
+
+        // Prepend to kanban tasks list
+        currentTasks.unshift(...createdTasks);
+        saveKanbanTasks(currentTasks);
+        console.log(`[Prompt to Kanban] 🚀 已批量注入 ${createdTasks.length} 个敏捷任务至【${targetStage}】阶段`);
+
+        return sendJson(res, 200, {
+          success: true,
+          count: createdTasks.length,
+          tasks: createdTasks,
+          message: `已成功将 ${createdTasks.length} 个敏捷用户故事注入看板【${targetStage}】阶段！`
+        });
+      } catch (err) {
+        return sendJson(res, 500, { error: { message: err.message } });
+      }
+    });
+    return;
+  }
+
+// ========================================================
+// AI Streaming Engines (Dual Mode: Antigravity CLI & Google Proxy)
+// ========================================================
+function streamAgyCli(prompt, systemPrompt, clientRes) {
+  clientRes.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
+
+  const thinkingInstruction = `\n\n[思考与输出格式规约]: 请先在 <thought> 标签内进行深入、严密的业务思考与推导过程（分析需求要点、架构权衡、边界异常与实现路径），闭合 </thought> 后，再给出正式、专业的最终解答与方案文档。`;
+  const fullPrompt = systemPrompt ? `[角色人设与执行规约]:\n${systemPrompt}${thinkingInstruction}\n\n[用户需求与上下文]:\n${prompt}` : `${prompt}${thinkingInstruction}`;
+  const agyBin = fs.existsSync('/Users/hexianghong/.local/bin/agy') ? '/Users/hexianghong/.local/bin/agy' : 'agy';
+
+  // 智能适配当前 7897 代理端口，清除失效的 7890 端口
+  const childEnv = { ...process.env };
+  const targetProxy = process.env.HTTPS_PROXY && !process.env.HTTPS_PROXY.includes('7890')
+    ? process.env.HTTPS_PROXY
+    : 'http://127.0.0.1:7897';
+
+  childEnv.http_proxy = targetProxy;
+  childEnv.https_proxy = targetProxy;
+  childEnv.HTTP_PROXY = targetProxy;
+  childEnv.HTTPS_PROXY = targetProxy;
+  childEnv.all_proxy = 'socks5://127.0.0.1:7897';
+  childEnv.ALL_PROXY = 'socks5://127.0.0.1:7897';
+
+  const cp = require('child_process');
+  const child = cp.spawn(agyBin, [
+    '-p', fullPrompt,
+    '--output-format', 'text',
+    '--dangerously-skip-permissions'
+  ], {
+    cwd: WORKSPACE_ROOT,
+    env: childEnv
+  });
+
+  child.stdout.on('data', chunk => {
+    const text = chunk.toString();
+    const sseChunk = JSON.stringify({
+      candidates: [{
+        content: {
+          parts: [{ text: text }]
+        }
+      }]
+    });
+    clientRes.write(`data: ${sseChunk}\n\n`);
+  });
+
+  child.stderr.on('data', chunk => {
+    const msg = chunk.toString();
+    if (!msg.includes('E1016') && !msg.includes('INFO')) {
+      console.warn('[agy CLI log]:', msg);
+    }
+  });
+
+  child.on('close', code => {
+    clientRes.write('data: [DONE]\n\n');
+    clientRes.end();
+  });
+
+  child.on('error', err => {
+    console.error('[agy spawn error]:', err);
+    clientRes.write(`data: ${JSON.stringify({ error: { message: `Antigravity 原生引擎调用失败: ${err.message}` } })}\n\n`);
+    clientRes.write('data: [DONE]\n\n');
+    clientRes.end();
+  });
+
+  // 监听前端中断/终止请求，立即强行销毁后台子进程
+  clientRes.on('close', () => {
+    if (child && !child.killed) {
+      console.log('[AI Bridge] ⏹️ 收到前端终止请求，立即杀死本地 agy 子进程');
+      try { child.kill('SIGINT'); } catch(e) {}
+      setTimeout(() => {
+        try { if (!child.killed) child.kill('SIGKILL'); } catch(e) {}
+      }, 500);
+    }
+  });
+}
+
+function proxyStreamingRequest(targetUrlStr, postData, clientRes) {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new url.URL(targetUrlStr);
+    const proxyUrl = getProxyUrl();
+    const isHttps = parsedUrl.protocol === 'https:';
+    const httpLib = isHttps ? https : http;
+
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (isHttps ? 443 : 80),
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+        'Accept': 'text/event-stream'
+      }
+    };
+
+    if (proxyUrl && isHttps) {
+      const agent = createTunnelAgent(proxyUrl);
+      if (agent) options.agent = agent;
+    }
+
+    const proxyReq = httpLib.request(options, (proxyRes) => {
+      clientRes.writeHead(proxyRes.statusCode, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*'
+      });
+
+      proxyRes.on('data', chunk => clientRes.write(chunk));
+      proxyRes.on('end', () => {
+        clientRes.end();
+        resolve();
+      });
+      proxyRes.on('error', err => {
+        clientRes.write(`data: ${JSON.stringify({ error: { message: err.message } })}\n\n`);
+        clientRes.end();
+        reject(err);
+      });
+    });
+
+    proxyReq.on('error', err => {
+      if (!clientRes.headersSent) {
+        clientRes.writeHead(502, { 'Content-Type': 'application/json' });
+        clientRes.end(JSON.stringify({ error: { message: `网络代理请求失败: ${err.message}` } }));
+      } else {
+        clientRes.write(`data: ${JSON.stringify({ error: { message: err.message } })}\n\n`);
+        clientRes.end();
+      }
+      reject(err);
+    });
+
+    proxyReq.write(postData);
+    proxyReq.end();
+  });
+}
+
+  // Streaming Chat API (Auto-fallback to Antigravity CLI when zero key)
   if (pathname === '/api/chat/stream' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -889,26 +1288,39 @@ ${dodItems}
         const model = payload.model || process.env.DEFAULT_MODEL || 'gemini-2.5-flash';
         const rawBaseUrl = payload.baseUrl || process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com';
 
-        if (!apiKey) {
-          return sendJson(res, 400, {
-            error: {
-              message: '未配置 Gemini API Key，请在界面设置中填入或配置在 .env 中。'
-            }
-          });
+        let userText = '';
+        if (payload.contents && payload.contents.length > 0) {
+          const lastMsg = payload.contents[payload.contents.length - 1];
+          userText = lastMsg.parts?.map(p => p.text).join('\n') || '';
+        }
+        const sysPrompt = payload.systemInstruction?.parts?.map(p => p.text).join('\n') || '';
+
+        // 1. 如果用户提供了 API Key，走 Google 官方极速云端流式通道
+        if (apiKey) {
+          const targetUrl = `${rawBaseUrl.replace(/\/+$/, '')}/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?key=${encodeURIComponent(apiKey)}&alt=sse`;
+          const geminiRequestBody = {
+            contents: payload.contents || [],
+            systemInstruction: payload.systemInstruction || undefined,
+            generationConfig: payload.generationConfig || undefined,
+            safetySettings: payload.safetySettings || undefined
+          };
+          const postData = JSON.stringify(geminiRequestBody);
+          return await proxyStreamingRequest(targetUrl, postData, res);
         }
 
-        const targetUrl = `${rawBaseUrl.replace(/\/+$/, '')}/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?key=${encodeURIComponent(apiKey)}&alt=sse`;
+        // 2. 免 Key 模式：自动启用 Antigravity IDE 原生 CLI 引擎！
+        const agyPath = fs.existsSync('/Users/hexianghong/.local/bin/agy') ? '/Users/hexianghong/.local/bin/agy' : null;
+        if (agyPath) {
+          console.log('[AI Bridge] 🚀 无 API Key，自动启用 Antigravity IDE 原生 CLI 免 Key 引擎！');
+          return streamAgyCli(userText, sysPrompt, res);
+        }
 
-        // Forward Gemini contents payload
-        const geminiRequestBody = {
-          contents: payload.contents || [],
-          systemInstruction: payload.systemInstruction || undefined,
-          generationConfig: payload.generationConfig || undefined,
-          safetySettings: payload.safetySettings || undefined
-        };
-
-        const postData = JSON.stringify(geminiRequestBody);
-        await proxyStreamingRequest(targetUrl, postData, res);
+        // 3. 既无 Key 也无 agy 时的友好指引
+        return sendJson(res, 400, {
+          error: {
+            message: '未配置 Gemini API Key，请在界面右上角「⚙️ 设置」中填入，或直接在 IDE 原生 Chat 窗口中对话。'
+          }
+        });
       } catch (err) {
         if (!res.headersSent) {
           sendJson(res, 500, { error: { message: err.message } });

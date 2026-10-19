@@ -31,10 +31,18 @@ INSTRUCTIONS_PATH="${STANDARDS_DIR}/core-rules/INSTRUCTIONS.md"
 SKILLS_PATH="${STANDARDS_DIR}/stack-templates/skills"
 MCP_CONFIG_PATH="${STANDARDS_DIR}/.agents/mcp_config.json"
 WEB_CHAT_PATH="${STANDARDS_DIR}/.agents/gemini-web-chat"
+AUTOMATION_TOOLS_PATH="${STANDARDS_DIR}/automation-tools"
 
 if [ ! -f "$INSTRUCTIONS_PATH" ]; then
     echo "❌ 错误: 找不到最高执行总控文件: $INSTRUCTIONS_PATH" >&2
     exit 1
+fi
+
+CURRENT_DIR="$(pwd -P)"
+STANDARDS_REAL_DIR="$(cd "$STANDARDS_DIR" && pwd -P)"
+IS_SELF_REPO=0
+if [ "$CURRENT_DIR" = "$STANDARDS_REAL_DIR" ]; then
+    IS_SELF_REPO=1
 fi
 
 if [ $UPDATE_MODE -eq 1 ]; then
@@ -138,6 +146,7 @@ cleanup_broken_links() {
         "./.agents/skills"
         "./.agents/mcp_config.json"
         "./.agents/gemini-web-chat"
+        "./.agents/tools"
         "./.agent"
     )
     for f in "${legacy_files[@]}"; do
@@ -170,6 +179,7 @@ exclude_generated_files() {
     update_gitignore "/.agents/skills"
     update_gitignore "/.agents/mcp_config.json"
     update_gitignore "/.agents/gemini-web-chat"
+    update_gitignore "/.agents/tools"
     update_gitignore "/.agent"
     update_gitignore "/docs/specs/"
     update_gitignore "/implementation_plan.md"
@@ -177,38 +187,50 @@ exclude_generated_files() {
     update_gitignore "/walkthrough.md"
 }
 
-# 1. 建立指向全局规范总控的软链接 (Antigravity 专享)
-echo "🔗 正在建立 AI 规范总控软链接..."
-cleanup_broken_links
+if [ $IS_SELF_REPO -eq 1 ]; then
+    echo "ℹ️  当前工作区为 ai-standards 规约主仓库，跳过自我软链接，保持当前物理源文件与目录结构。"
+else
+    # 1. 建立指向全局规范总控的软链接 (Antigravity 专享)
+    echo "🔗 正在建立 AI 规范总控软链接..."
+    cleanup_broken_links
 
-ln -sf "$INSTRUCTIONS_PATH" ./GEMINI_GLOBAL.md
-echo "  🔹 GEMINI_GLOBAL.md -> $INSTRUCTIONS_PATH"
+    ln -sf "$INSTRUCTIONS_PATH" ./GEMINI_GLOBAL.md
+    echo "  🔹 GEMINI_GLOBAL.md -> $INSTRUCTIONS_PATH"
 
-# 2. 挂载 Antigravity 原生工作区技能 (.agents/skills)
-if [ -d "$SKILLS_PATH" ]; then
-    echo "🧠 正在挂载 Antigravity 原生工作区技能库..."
-    mkdir -p ./.agents
-    ln -sfn "$SKILLS_PATH" ./.agents/skills
-    echo "  🔹 ./.agents/skills -> $SKILLS_PATH"
+    # 2. 挂载 Antigravity 原生工作区技能 (.agents/skills)
+    if [ -d "$SKILLS_PATH" ]; then
+        echo "🧠 正在挂载 Antigravity 原生工作区技能库..."
+        mkdir -p ./.agents
+        ln -sfn "$SKILLS_PATH" ./.agents/skills
+        echo "  🔹 ./.agents/skills -> $SKILLS_PATH"
+    fi
+
+    # 3. 挂载 Antigravity 工作区标准 MCP 配置 (.agents/mcp_config.json)
+    if [ -f "$MCP_CONFIG_PATH" ]; then
+        echo "🔌 正在挂载 Antigravity 全局标准 MCP 配置..."
+        mkdir -p ./.agents
+        ln -sf "$MCP_CONFIG_PATH" ./.agents/mcp_config.json
+        echo "  🔹 ./.agents/mcp_config.json -> $MCP_CONFIG_PATH"
+    fi
+
+    # 4. 挂载 Antigravity Web Chat 效能与敏捷工作台 (.agents/gemini-web-chat)
+    if [ -d "$WEB_CHAT_PATH" ]; then
+        echo "🛠️  正在挂载 Antigravity Web Chat 敏捷效能工作台..."
+        mkdir -p ./.agents
+        ln -sfn "$WEB_CHAT_PATH" ./.agents/gemini-web-chat
+        echo "  🔹 ./.agents/gemini-web-chat -> $WEB_CHAT_PATH"
+    fi
+
+    # 5. 挂载全局自动化脚本工具集 (.agents/tools)
+    if [ -d "$AUTOMATION_TOOLS_PATH" ]; then
+        echo "⚙️  正在挂载全局自动化脚本工具集..."
+        mkdir -p ./.agents
+        ln -sfn "$AUTOMATION_TOOLS_PATH" ./.agents/tools
+        echo "  🔹 ./.agents/tools -> $AUTOMATION_TOOLS_PATH"
+    fi
 fi
 
-# 3. 挂载 Antigravity 工作区标准 MCP 配置 (.agents/mcp_config.json)
-if [ -f "$MCP_CONFIG_PATH" ]; then
-    echo "🔌 正在挂载 Antigravity 全局标准 MCP 配置..."
-    mkdir -p ./.agents
-    ln -sf "$MCP_CONFIG_PATH" ./.agents/mcp_config.json
-    echo "  🔹 ./.agents/mcp_config.json -> $MCP_CONFIG_PATH"
-fi
-
-# 4. 挂载 Antigravity Web Chat 效能与敏捷工作台 (.agents/gemini-web-chat)
-if [ -d "$WEB_CHAT_PATH" ]; then
-    echo "🛠️  正在挂载 Antigravity Web Chat 敏捷效能工作台..."
-    mkdir -p ./.agents
-    ln -sfn "$WEB_CHAT_PATH" ./.agents/gemini-web-chat
-    echo "  🔹 ./.agents/gemini-web-chat -> $WEB_CHAT_PATH"
-fi
-
-# 5. 自动初始化本地专属业务上下文 GEMINI.md (防覆盖，带技术栈联动)
+# 6. 自动初始化本地专属业务上下文 GEMINI.md (防覆盖，带技术栈联动)
 if [ ! -f "GEMINI.md" ]; then
     echo "📝 正在初始化项目专属业务上下文模板: GEMINI.md (已联动检测到的技术栈) ..."
     
@@ -231,9 +253,14 @@ $(echo -e "$STACK_DOC_LINK")
 ## 3. 本地可用技能与常用命令 (Local Skills & Commands)
 - **运行/开发**: \`${RUN_CMD:-npm run dev}\`
 - **构建/测试**: \`${TEST_CMD:-npm test}\`
-- **原生技能库**: 已通过 \`.agents/skills/\` 挂载全局 SRE 排障、日志规范与依赖图分析技能。
+- **原生技能库**: 已通过 \`.agents/skills/\` 挂载全局 SRE 排障、日志规范与架构测绘技能。
 - **Web 效能工作台**: \`node .agents/gemini-web-chat/server.js\` (支持流式对话、敏捷看板、多角色热加载与文档自动持久化)
-- **本地自动化工具**: 如有内置代码生成器、迁移脚本，写在此处，AI 将优先复用。
+- **本地自动化工具**: 已通过 \`.agents/tools/\` 挂载全局脚本工具集：
+  - 过程资产归档: \`./.agents/tools/archive-specs.sh <feature-name>\`
+  - 代码大纲测绘: \`./.agents/tools/gen-repo-map.sh .\`
+  - 知识库全文索引: \`./.agents/tools/index-knowledge.sh docs\`
+  - 看板终端推进: \`./.agents/tools/update-kanban.sh <task-id> <stage>\`
+  - 错误反馈上报: \`./.agents/tools/record-feedback.sh <project> <category> <summary>\`
 
 ## 4. 本地推荐 MCP 服务 (Recommended MCP Servers)
 - **Database MCP**: 配置数据库连接，方便 AI 精准获取表结构 Schema。
@@ -244,9 +271,10 @@ $(echo -e "$STACK_DOC_LINK")
 - **核心接口/路由**: 列出项目中最关键的公共接口、API 路由定义文件。
 - **核心模型/实体**: 列出关键的数据库实体或领域对象声明。
 
-## 6. AI 自我进化错题本 (Lessons Learned)
-- **长效记忆库**: [LEARNING.md](./LEARNING.md)
-- *注意: 任何在此项目中被开发者纠正的代码规范或错误，AI 必须主动总结并写入该文件中，确保不再重复犯错。*
+## 6. AI 自我进化与全局反哺机制 (Lessons Learned & Global Feedback)
+- **本地长效记忆**: [LEARNING.md](./LEARNING.md)
+  - *注意: 任何在此项目中被开发者纠正的代码规范或错误，AI 必须主动总结并写入该文件中，确保不再重复犯错。*
+- **全局优化反馈**: 会话内直接对 AI 说 `“反馈这个问题”` 或 `“/report-issue”`，AI 将自动把错误现场同步至全局优化池，由开发者统一制定规约与技能加固方案。
 EOF
     echo "  🔹 GEMINI.md 模板生成成功！"
 else

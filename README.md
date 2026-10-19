@@ -81,9 +81,10 @@ cd /Users/hexianghong/code/your-target-project
 ```
 
 1. **主动反哺规约 (Proactive Mining)**：当 AI 协助您解决复杂故障或编写出通用脚本后，AI 将主动提示：“*本次解决的方案具备通用价值，建议提炼并归档至 ai-standards 或个人知识库 knowledgeBase*”。
-2. **错题本升格通道**：项目本地 `LEARNING.md` 记录的踩坑教训，会动态升级为全局通用规约。
+2. **AI 错误反馈与全局优化池 (Feedback Loop)**：在任何业务项目中，对 AI 说 `“反馈这个问题”` 或在 AI 多次出错时，AI 将自动将现场结构化写入 `feedback/inbox/`，并在 [FEEDBACK_KANBAN.md](feedback/FEEDBACK_KANBAN.md) 注册待办，支撑开发者针对性制定规约与技能加固方案。
+3. **错题本升格通道**：项目本地 `LEARNING.md` 记录的踩坑教训，会动态升级为全局通用规约。
 
-
+---
 
 ## 📁 最终仓库权威目录现状
 
@@ -96,6 +97,11 @@ ai-standards
 ├── REFERENCE_REPOSITORIES.md                    # 社区 Top 10 开源规约对标库
 ├── ROADMAP.md                                   # 路线图
 ├── knowledgebase-to-standards-guide.md          # 知识库与规范库联动指南
+├── feedback/                                    # 📥 全局 AI 错误反馈中心与优化看板
+│   ├── FEEDBACK_KANBAN.md                       # 📋 反馈跟踪与优化看板 (待评估/方案制定/已落地)
+│   ├── inbox/                                   # 待分析的各业务项目 Case
+│   ├── archive/                                 # 已完成规约优化并闭环的历史 Case
+│   └── templates/                               # 标准反馈卡片模板
 ├── .agents/
 │   └── skills -> stack-templates/skills        # Antigravity 原生工作区技能挂载
 ├── core-rules/

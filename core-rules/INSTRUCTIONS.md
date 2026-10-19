@@ -37,7 +37,7 @@ graph TD
 在动手编写任何代码前，AI 必须基于“先看结构，再看内容”的原则，构建本次任务的**知识地图 (Repository Map)** 并进行设计评估：
 1. **全局探测与架构感知 (AI 工具自主执行)**：
    - **严禁盲目猜测文件位置**。首先通过扫描目录结构、阅读 `README.md` 与核心入口文件建立上下文。
-   - **工具自主调用**：若当前项目中存在 `automation-tools/gen-repo-map.sh`，AI 智能体**必须通过 `run_command` 工具主动且静默地执行该脚本 (`./automation-tools/gen-repo-map.sh .`)** 获取项目符号大纲大图，严禁依赖用户手动运行或在聊天框中提醒用户执行。
+   - **工具自主调用**：若当前项目中存在 `.agents/tools/gen-repo-map.sh` 或 `automation-tools/gen-repo-map.sh`，AI 智能体**必须通过 `run_command` 工具主动且静默地执行该脚本 (`./.agents/tools/gen-repo-map.sh .` 或 `./automation-tools/gen-repo-map.sh .`)** 获取项目符号大纲大图，严禁依赖用户手动运行或在聊天框中提醒用户执行。
    - 必须主动使用搜索工具探测类、接口、函数的引用关系，梳理出上下游依赖树。
 2. **局部符号精读（骨架化感知）**：
    - 仅精准读取强相关类的 Symbol 签名声明（如 Interface 契约、类型定义），**严禁盲目读取大片无关文件的完整函数体实现**，规避上下文污染。
@@ -49,7 +49,7 @@ graph TD
 
 
 ### 步骤二：Skills 技能发现与复用
-- 动手写代码或脚本前，**必须优先扫描**项目内的 `automation-tools/` 或 `.agents/skills/` 目录，检索是否有现成的技能脚本（如：代码生成、数据库 Schema 迁移、自动部署等）。
+- 动手写代码或脚本前，**必须优先扫描**项目内的 `.agents/tools/`、`automation-tools/` 或 `.agents/skills/` 目录，检索是否有现成的技能脚本（如：代码生成、数据库 Schema 迁移、自动部署等）。
 - 若存在已有技能，必须优先调用并复用，严禁绕过已有脚本自行手动编写临时命令。
 - **全局共享技能库调用**：AI 应当主动加载并遵循位于 `/Users/hexianghong/code/gemini-skills` 目录下的全局技能资源：
   - **开发与协作技能 (Superpowers)**：位于 [superpowers/skills](file:///Users/hexianghong/code/gemini-skills/skills/superpowers/skills/)。当开发任务涉及功能编写、系统重构、调试排错或测试用例时，应主动读取并遵循对应的工作流规范（如 `test-driven-development`, `systematic-debugging`, `using-git-worktrees` 等）。
@@ -129,7 +129,22 @@ graph TD
 
 ### 3) 必须沉淀的自我进化错题本与全局反哺机制 (Lessons Learned & Standards Refinement)
 *   **全局个人知识库 (Knowledge Base)**：用户的核心知识库位于 `/Users/hexianghong/code/knowledgeBase`。在日常开发、技术验证或 SRE 排错过程中，当识别出具备通用沉淀价值的底层技术原理、生产实战机制或架构方案时，AI 必须主动支持将技术总结与深度提炼归档至该知识库对应专题（如 `01_Inbox/` 核心专题区或 `02_Notes/` 精华卡片区），助力技术知识资产的沉淀与自我演进闭环。
-*   **长效记忆机制**：如果在交互中 AI 违背了某种规范、使用了废弃的 API 或遭到了用户的纠正，AI **必须主动**将该次纠正总结为一条简练的原则，并追加到项目的 `LEARNING.md`（或 `GEMINI.md` 的专属区域）中。
+*   **本地长效记忆 (Local LEARNING.md)**：如果在交互中 AI 违背了某种规范、使用了废弃的 API 或遭到了用户的纠正，AI **必须主动**将该次纠正总结为一条简练的原则，并追加到本项目的 `LEARNING.md` 中。
+*   **全局 AI 交互错误与失败反馈机制 (AI Interaction Feedback & Continuous Improvement)**：
+    为彻底解决各业务项目在 AI 交互中踩坑无法沉淀、规约无法动态进化的痛点，建立全局集中反馈与闭环优化体系：
+    *   **集中沉淀池 (SSOT Inbox)**：所有项目的 AI 错误现场与反馈统一汇集在全局规范仓库中：
+        *   反馈文件池：`/Users/hexianghong/code/ai-standards/feedback/inbox/YYYY-MM-DD_<project>_<slug>.md`
+        *   全局优化看板：`/Users/hexianghong/code/ai-standards/feedback/FEEDBACK_KANBAN.md`
+    *   **模式 A：被动触发（用户指令响应 - 零摩擦）**：
+        *   *触发词*：当用户在任何业务项目中发出“`反馈这个问题`”、“`上报这个错误/Case`”、“`记录这次失败`”、“`这不符合规范，上报`”、“`/report-issue`”等指令时。
+        *   *执行动作*：AI 必须**立即**提取当前现场（项目名、任务背景、错误代码/报错日志、用户纠偏期望、初步归因），调用文件工具写入全局路径 `/Users/hexianghong/code/ai-standards/feedback/inbox/`，并在 `FEEDBACK_KANBAN.md` 注册一条状态为 `待评估` 的条目（或直接运行 `./.agents/tools/record-feedback.sh`）。同时在本地 `LEARNING.md` 登记一条速记。完成并向用户呈报已归入全局优化池。
+    *   **模式 B：主动触发（AI 自我识别与质检提议）**：
+        *   *触发条件*：当 AI 连续发生编译/测试失败（2 次及以上）、出现逻辑死循环、被用户明确纠正（如“你写错了/完全不是这样”），或违背了安全红线与工程规范时。
+        *   *执行动作*：AI 在协助修复当前问题的同时，**必须在回复末尾主动提请用户确认**：
+            > *"💡 **AI 交互质检提议**：检测到本次交互中出现了 [XXX 错误/偏离]。为了在全局规约层面阻断此类问题在其他项目中复现，我已整理好错误现场，是否需要我将其上报至 `ai-standards` 优化池供后续制定规约防护方案？"*
+        *   用户一旦确认，AI 自动落盘至全局反馈池。
+    *   **全局方案制定与落地闭环 (Triage & Optimization)**：
+        *   当用户在 `ai-standards` 仓库中查阅看板或唤醒 AI 时，AI 必须协助对 `feedback/inbox/` 中的案例进行 5 Whys 根因分析，输出《规约/技能优化改进方案》，并直接修订 `core-rules/`、`stack-templates/` 或 `.agents/skills/`，实现“一处修改、所有项目通过软链接即时同步生效”。
 *   **全局主动反哺规约 (Proactive Mining)**：当 AI 协助用户解决了一个复杂生产故障/调试问题、重构了易踩坑逻辑或分析完知识库深度文档后，如果发现其中包含通用价值的架构红线、黄金配置或诊断 SOP，AI **必须主动提示用户**：
     > *"💡 提示：本次解决的 [xxx问题] 具备通用价值，建议提炼并归档至 `ai-standards` 的 [core-rules / stack-templates / troubleshooting-sop] 或个人知识库 `/Users/hexianghong/code/knowledgeBase`。是否需要我生成提炼草案？"*
 

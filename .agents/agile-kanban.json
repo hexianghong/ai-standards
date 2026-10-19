@@ -53,7 +53,7 @@
   {
     "id": "task-003",
     "title": "敏捷研发流程规范与全生命周期 SOP 制定",
-    "stage": "release",
+    "stage": "done",
     "priority": "P1",
     "assignee": "资深产品经理",
     "tag": "敏捷流程 / 规范",
@@ -63,7 +63,9 @@
       "定义各阶段 DoR 与 DoD",
       "输出泳道图与流转规约",
       "提供标准看板流转体系"
-    ]
+    ],
+    "updatedAt": "2026-10-16T03:14:47.848Z",
+    "completedDocLink": "docs/completed/task-003-completion-record.md"
   },
   {
     "id": "task-004",
