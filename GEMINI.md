@@ -17,7 +17,7 @@
 ## 1. 业务背景与核心功能 (Context)
 - **背景**: 本仓库是研发与 SRE 运维工作区的**全局 AI 规约与标准执行引擎**。定义编码标准、安全防护红线、SRE 排障 SOP、动态 Agent 协作流程及自动化脚本。
 - **技术栈支持**: Go、Java、Vue3、React 及 TypeScript。
-- **客户端适配**: 专享适配 Google DeepMind Antigravity (`GEMINI_GLOBAL.md`)。
+- **客户端适配**: 专享适配 Google DeepMind Antigravity (`GEMINI_GLOBAL.md`) 与 OpenAI Codex (`AGENTS.md`)。
 
 ---
 
@@ -28,6 +28,7 @@
 ---
 
 ## 3. 本地技能与自动化脚本 (Local Skills & Scripts)
+- **项目 Skills 目录**：遵循[全局客户端加载规约](./core-rules/INSTRUCTIONS.md#1-客户端适配与上下文路由-client--rules-resolution)。所有 AI 客户端统一使用 [`stack-templates/skills/`](./stack-templates/skills/) 中的项目技能，工作区入口 [`.agents/skills/`](./.agents/skills/) 链接到该目录。
 - **项目初始化与注入**: `./automation-tools/init-project.sh`
   - 为已有或新项目一键注入全局 AI 规约软链接 (`GEMINI_GLOBAL.md`)、挂载 `.agents/skills` 技能库、`.agents/mcp_config.json` 标准 MCP 配置、`.agents/gemini-web-chat` 效能工作台，以及挂载 `.agents/tools` 自动化脚本工具集。
 - **Web 研发效能与敏捷工作台**: `node .agents/gemini-web-chat/server.js`
@@ -54,5 +55,5 @@
 - **AI 错误反馈与优化看板**: [feedback/FEEDBACK_KANBAN.md](file:///Users/hexianghong/code/ai-standards/feedback/FEEDBACK_KANBAN.md)
 - **安全红线标准**: [core-rules/security-guardrails.md](file:///Users/hexianghong/code/ai-standards/core-rules/security-guardrails.md)
 - **云原生与 SRE 规约**: [core-rules/cloud-native-rules.md](file:///Users/hexianghong/code/ai-standards/core-rules/cloud-native-rules.md)
-- **技能插件体系**: [stack-templates/skills/](file:///Users/hexianghong/code/ai-standards/stack-templates/skills/)
+- **项目技能库**: [stack-templates/skills/](file:///Users/hexianghong/code/ai-standards/stack-templates/skills/)
 - **技术栈研发规约**: [stack-templates/](file:///Users/hexianghong/code/ai-standards/stack-templates/)

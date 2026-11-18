@@ -1147,8 +1147,10 @@ function streamAgyCli(prompt, systemPrompt, clientRes) {
     'Access-Control-Allow-Origin': '*'
   });
 
-  const thinkingInstruction = `\n\n[思考与输出格式规约]: 请先在 <thought> 标签内进行深入、严密的业务思考与推导过程（分析需求要点、架构权衡、边界异常与实现路径），闭合 </thought> 后，再给出正式、专业的最终解答与方案文档。`;
-  const fullPrompt = systemPrompt ? `[角色人设与执行规约]:\n${systemPrompt}${thinkingInstruction}\n\n[用户需求与上下文]:\n${prompt}` : `${prompt}${thinkingInstruction}`;
+  const thinkingInstruction = `\n\n【强制输出格式要求】: 请务必严格先在 <thought> 标签内写出完整的深度思考推导过程（涵盖需求深度拆解、业务边界考量、架构设计权衡与演进路径），闭合 </thought> 之后，再输出正式的交付方案与回答内容。`;
+  const fullPrompt = systemPrompt 
+    ? `[角色人设与执行规约]:\n${systemPrompt}\n\n[用户需求与上下文]:\n${prompt}${thinkingInstruction}` 
+    : `${prompt}${thinkingInstruction}`;
   const agyBin = fs.existsSync('/Users/hexianghong/.local/bin/agy') ? '/Users/hexianghong/.local/bin/agy' : 'agy';
 
   // 智能适配当前 7897 代理端口，清除失效的 7890 端口
@@ -1174,7 +1176,11 @@ function streamAgyCli(prompt, systemPrompt, clientRes) {
     env: childEnv
   });
 
+  let hasReceivedStdout = false;
+  let stderrBuffer = '';
+
   child.stdout.on('data', chunk => {
+    hasReceivedStdout = true;
     const text = chunk.toString();
     const sseChunk = JSON.stringify({
       candidates: [{
@@ -1188,12 +1194,21 @@ function streamAgyCli(prompt, systemPrompt, clientRes) {
 
   child.stderr.on('data', chunk => {
     const msg = chunk.toString();
+    stderrBuffer += msg;
     if (!msg.includes('E1016') && !msg.includes('INFO')) {
       console.warn('[agy CLI log]:', msg);
     }
   });
 
   child.on('close', code => {
+    if (!hasReceivedStdout && code !== 0) {
+      console.error('[AI Bridge] ❌ agy 子进程异常退出，无标准输出。code:', code, 'stderr:', stderrBuffer);
+      clientRes.write(`data: ${JSON.stringify({ 
+        error: { 
+          message: `本地 Antigravity CLI 引擎执行失败 (Exit code ${code})。错误摘要: ${stderrBuffer.slice(-260).trim() || '无进程响应'}。建议在右上角「⚙️ 设置」中填入 Gemini API Key，或直接使用 IDE 原生 Chat 窗口。` 
+        } 
+      })}\n\n`);
+    }
     clientRes.write('data: [DONE]\n\n');
     clientRes.end();
   });
@@ -1298,10 +1313,24 @@ function proxyStreamingRequest(targetUrlStr, postData, clientRes) {
         // 1. 如果用户提供了 API Key，走 Google 官方极速云端流式通道
         if (apiKey) {
           const targetUrl = `${rawBaseUrl.replace(/\/+$/, '')}/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?key=${encodeURIComponent(apiKey)}&alt=sse`;
+          let sysParts = payload.systemInstruction?.parts || [];
+          const thinkingInstruction = `\n\n[思考与输出格式规约]: 请先在 <thought> 标签内进行深入、严密的业务思考与推导过程（分析需求要点、架构权衡、边界异常与实现路径），闭合 </thought> 后，再给出正式、专业的最终解答与方案文档。`;
+          let combinedSysText = sysParts.map(p => p.text).join('\n');
+          if (combinedSysText) {
+            combinedSysText += thinkingInstruction;
+          } else {
+            combinedSysText = thinkingInstruction.trim();
+          }
+
           const geminiRequestBody = {
             contents: payload.contents || [],
-            systemInstruction: payload.systemInstruction || undefined,
-            generationConfig: payload.generationConfig || undefined,
+            systemInstruction: { parts: [{ text: combinedSysText }] },
+            generationConfig: {
+              ...(payload.generationConfig || {}),
+              thinkingConfig: {
+                thinkingBudget: -1
+              }
+            },
             safetySettings: payload.safetySettings || undefined
           };
           const postData = JSON.stringify(geminiRequestBody);

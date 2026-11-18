@@ -56,5 +56,15 @@ This document records the top 10 most popular open-source repositories for **AI 
 - **Highlights**: Summarizes prompt engineering techniques for top models (Claude 3.5 Sonnet, Gemini 1.5 Pro) to manage context and prevent hallucinations.
 - **Implemented Outcomes**: Assisted in designing our Surgical Editing guidelines to prevent full-file rewrites.
 
+### 11. [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)
+- **Type**: Lazy Senior Dev Persona, YAGNI Engineering Discipline & Full-Chain Code Review Suite (182k+ Stars)
+- **Highlights**: Enforces the "7-Rung YAGNI Ladder" (-53% code, -45% tokens, 98% risky logic test coverage), full caller-graph `grep` impact checks before bug fixes, explicit `shortcut: <ceiling>, <upgrade trigger>` debt markers, residual risk disclosure, and a 6-dimension / 4-part structured code review & repo audit methodology.
+- **Implemented Outcomes**: Upgraded `core-rules/INSTRUCTIONS.md` with the 7-Rung YAGNI Ladder, Caller Graph Blast-Radius Check, `shortcut:` debt protocol, and Residual Risk Disclosure; created the standardized `stack-templates/skills/code-review/SKILL.md` skill.
+
+### 12. [toon-format/toon](https://github.com/toon-format/toon)
+- **Type**: Token-Oriented Object Notation (TOON) – Compact LLM Data Serialization Format (25k+ Stars)
+- **Highlights**: A lossless, human-readable encoding of the JSON data model combining YAML-like indentation with CSV-style tabular headers (`key[N]{fields}:`), cutting LLM context tokens by 30%~60% (42.6% benchmark avg) while achieving 100% structural validation accuracy via explicit row/column guardrails.
+- **Implemented Outcomes**: Integrated into `core-rules/INSTRUCTIONS.md` (Step 3 MCP & Context Guardrails) as the recommended serialization standard for passing uniform object arrays across MCP/LLM boundaries and enforcing `[N]{fields}` output guardrails.
+
 ---
 *Note: When a user requests the AI to study a new open-source project and extract standards, the AI MUST proactively update this document.*

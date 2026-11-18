@@ -140,6 +140,7 @@ fi
 cleanup_broken_links() {
     local legacy_files=(
         "./GEMINI_GLOBAL.md"
+        "./AGENTS.md"
         "./.cursorrules"
         "./.clinerules"
         "./.github/copilot-instructions.md"
@@ -176,6 +177,7 @@ update_gitignore() {
 exclude_generated_files() {
     echo "🛡️  正在更新 .gitignore 以排除生成的文件及本地过程资产..."
     update_gitignore "/GEMINI_GLOBAL.md"
+    update_gitignore "/AGENTS.md"
     update_gitignore "/.agents/skills"
     update_gitignore "/.agents/mcp_config.json"
     update_gitignore "/.agents/gemini-web-chat"
@@ -287,9 +289,15 @@ if [ ! -f "LEARNING.md" ]; then
     echo "  🔹 LEARNING.md 错题本生成成功！"
 fi
 
-# 5. 排除规则配置
+# 5. 自动建立 OpenAI Codex 适配软链接 (AGENTS.md -> GEMINI.md)
+if [ -f "GEMINI.md" ]; then
+    ln -sf GEMINI.md ./AGENTS.md
+    echo "  🔹 AGENTS.md -> GEMINI.md (OpenAI Codex 专享适配)"
+fi
+
+# 6. 排除规则配置
 exclude_generated_files
 
 echo ""
 echo "✅ Antigravity 全局 AI 规范标准与技能库配置完成！"
-echo "👉 现在你可以在 Antigravity IDE 中开启会话，智能体将自动识别规约与原生技能。"
+echo "👉 现在你可以在 Antigravity IDE 或 OpenAI Codex 中开启会话，智能体将自动识别规约与原生技能。"

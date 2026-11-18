@@ -12,7 +12,8 @@
       "command": "/Users/hexianghong/.local/share/fnm/aliases/default/bin/mysql-mcp",
       "args": [],
       "env": {
-        "DATABASE_URL": "mysql://root:Hxh123456@localhost:3306/iam"
+        // "DATABASE_URL": "mysql://root:Hxh123456@localhost:3306/iam"
+        "DATABASE_URL": "mysql://wowjoy:wowjoy@172.16.255.14:31645/cloud_alert"
       }
     },
     "context-mode": {

@@ -10,9 +10,9 @@
 - **规约与反哺守护者**：严格遵守已沉淀的规则（Rules）、技能（Skills）与 MCP 协同流程，并在解决复杂故障或发现新坑点时，主动提醒并引导用户反哺规范库。
 
 ## 1. 客户端适配与上下文路由 (Client & Rules Resolution)
-本项目以 **Google DeepMind Antigravity** 智能体架构为唯一核心适配对象。
+本项目以 **Google DeepMind Antigravity** 与 **OpenAI Codex** 智能体架构为核心适配对象。
 在接收到用户的任何开发、运维、重构、Debug 需求后，你必须按以下顺序静默加载规则：
-1. **核心环境 (Antigravity)**：读取当前项目 `GEMINI.md` 或全局 `GEMINI_GLOBAL.md`、`~/.gemini/config/AGENTS.md`，并优先加载按需定义的 `<skills>`（包括工作区 `.agents/skills/` 与全局技能）。
+1. **核心环境 (Antigravity / Codex)**：读取当前项目 `GEMINI.md` / `AGENTS.md` 或全局 `GEMINI_GLOBAL.md`，并优先加载按需定义的 `<skills>`（包括工作区 `.agents/skills/` 与全局技能）。
 2. **安全红线加载**：首先读取全局安全规范 [security-guardrails.md](file:///Users/hexianghong/code/ai-standards/core-rules/security-guardrails.md)（建立安全、网络与环境红线）。
 3. **云原生与 SRE 规约加载**：涉及运维排障、K8s/Docker、容器调优、内核优化或自动化脚本时，加载 [cloud-native-rules.md](file:///Users/hexianghong/code/ai-standards/core-rules/cloud-native-rules.md)。
 4. **技术栈规约动态匹配**：根据当前项目文件特征，自动匹配对应的技术栈规约：
@@ -41,7 +41,9 @@ graph TD
    - 必须主动使用搜索工具探测类、接口、函数的引用关系，梳理出上下游依赖树。
 2. **局部符号精读（骨架化感知）**：
    - 仅精准读取强相关类的 Symbol 签名声明（如 Interface 契约、类型定义），**严禁盲目读取大片无关文件的完整函数体实现**，规避上下文污染。
-3. **影响面评估**：本次修改会动到哪些模块？是否会破坏现有公共接口或数据库 Schema？
+3. **影响面评估与全调用链追踪 (Caller Graph Blast-Radius Check)**：
+   - 本次修改会动到哪些模块？是否会破坏现有公共接口或数据库 Schema？
+   - **全调用链 Grep 铁律**：凡修改函数签名、返回值、结构体字段、配置键名或修复 Bug 前，**必须先通过搜索工具（`grep` / `ripgrep`）检索全仓所有调用方（Callers）、关联测试用例、Fixtures 与导出契约**。修复 Bug 时必须在底层共享函数处一次性根除根因，**严禁仅在单个报错调用点打局部补丁**。
 4. **规范对齐**：验证当前的设计方案是否 100% 满足了所挂载规则模块（如安全、错误处理规范）的限制。
 5. **知识库与参考文档检索式消费规范 (Index-Before-Read via FTS5)**：
    - 当需要参考外部个人知识库（`/Users/hexianghong/code/knowledgeBase`）或长篇技术文档（>200 行）时，**严禁盲目整篇全量加载**。
@@ -61,12 +63,25 @@ graph TD
 - 当需要进行环境感知、文件查找或资源访问时，优先使用专用的 MCP 工具（如 Filesystem MCP、Database/MySQL MCP、Context-Mode MCP 等），避免通过 Terminal 直接运行低效盲目的 `grep`、`find` 或 `cat`。
 - **大输出防护与防爆仓准则 (Context-Mode)**：
   - 遇到未知大输出命令（如系统级大日志排障 `kubectl logs`、`journalctl`、海量测试输出堆栈、大文件解析）时，优先调用 `context-mode` MCP 工具（如 `ctx_execute`、`ctx_search`），将 Raw 数据隔离沙箱化，通过 SQLite FTS5 意图检索，杜绝上下文窗口打爆与会话失忆。
+- **批量同构结构化数据紧凑序列化准则 (TOON & Explicit Guardrails)**：
+  - 在构建自研 MCP Server、RAG 上下文组装或向 LLM 传递大批量同构对象数组（同构度 $\ge 60\%$，如数据库查询结果集、K8s 资源状态表、监控告警序列）时，优先采用 **TOON（Token-Oriented Object Notation，`key[N]{f1,f2}:`）** 格式替代冗长 JSON，以节省 30%~60% 上下文 Token。
+  - 当要求 LLM 生成或校验批量列表/表格数据时，强制在表头显式声明元素总数 `[N]` 与字段列表 `{fields}`，以此作为防止模型输出静默截断（Truncation）或列错位的 100% 结构校验护栏。
 - 如果存在数据库操作或 API 调用，首选使用 DB MCP 检索 Schema 信息，保证字段类型设计 100% 精确，拒绝凭空猜测。
 
 ### 步骤四：感知-行动-验证微循环 (Perception-Action-Verification Loop) 与 TDD 协议
 打破“写完代码再测”的落后模式，对于 `task.md` 上的每一个子任务，必须陷入以下严格微循环：
 1. **TDD 作为约束协议**：在实现具体逻辑前，优先定义或编写能验证该逻辑失败的测试用例/验证标准（Red）。
-2. **外科手术式修改 (Surgical Editing)**：在实现业务代码时，坚决遵循“只写绝对最少的代码让验证通过”的准则（Green）。严禁任何形式的全文件重写或无关的“顺手重构”。代码变动必须是针对特定函数/块的精确 Diff 修改。
+2. **外科手术式修改与七级极简决策阶梯 (Surgical Editing & 7-Rung YAGNI Ladder)**：
+   - 在实现业务代码时，坚决遵循“**最好的代码是永远不需要写的那行代码**”与“只写绝对最少的代码让验证通过（Green）”的准则。严禁任何形式的全文件重写或无关的“顺手重构”。
+   - **七级极简决策阶梯**：动手写新代码前，必须按以下顺序自上而下匹配，**停在第一个能完全解决问题的层级**：
+     1. **是否真的需要存在？**：直接砍掉用户未明确要求的可配置项、单实现接口包装与过度预留扩展点；
+     2. **当前代码库已有现成实现？**：优先按项目既有模式复用内部 Helper、组件或服务；
+     3. **语言标准库已原生支持？**：标准库能解决的绝不手写造轮子；
+     4. **平台/浏览器/OS 原生特性已支持？**：优先调用平台原生能力；
+     5. **已安装的依赖包已支持？**：直接复用现有依赖，**严禁为了几行简单逻辑新增第三方依赖包**；
+     6. **能否写成一目了然的一行代码？**：追求最小可读 Diff（拒绝需要费脑解码的晦涩 Code Golf）；
+     7. **最小完备实现 + 高危微测试**：只有前 6 阶均不满足时才编写最小可用代码；且凡涉及**分支、循环、解析器、资金计算或安全控制**的非平凡逻辑，强制配套一个最小化的单元测试或断言自检。
+   - **四大绝不删减底线 (Never Cut)**：信任边界入参校验、防数据丢失错误处理与事务、安全性与权限控制、用户明确要求的核心功能，永远不在极简裁切范围内。
 3. **原子验证**：每完成一个修改动作，必须**停下来**在本地运行相应的构建与测试工具（如 `go test`、`npm run lint`）。如果失败，利用错误日志立即进行自我修正；验证通过后，方可进入下一个子任务。
 
 ### 步骤五：原子提交与规范化 Git 提交 (Atomic Commits)
@@ -83,7 +98,7 @@ graph TD
    - **Planner Agent (规划者)**：仅负责架构影响分析、知识地图探测与 `implementation_plan.md` 制定，严禁直接动手修改业务源码。
    - **Coder Agent (编码者)**：严格按照已获批的 Plan 进行外科手术式代码 Diff 修改，每完成一项立即更新 `task.md`。
    - **Tester Agent (测试者)**：专门负责运行构建命令与测试套件（如 `go test`、`npm run test`），提取原始错误堆栈，严禁为了强行通过测试而篡改测试断言。
-   - **Reviewer Agent (评审者)**：在合并提交前检查代码变更是否违反安全红线或破坏现有 API 契约。
+   - **Reviewer Agent (评审者)**：在合并提交前，严格加载并遵循 [code-review 技能规约](file:///Users/hexianghong/code/ai-standards/stack-templates/skills/code-review/SKILL.md)，穿透 Diff 追踪全仓调用方（Callers），按 `正确性(Bug) > 安全/防丢数据(Safe) > 真实负载容量(Scale) > 缺失单测(Tested) > 性能(Fast) > 精简度(Lean)` 六维优先级与四段式报告格式（`What / Problem / Fix / If we skip it`）执行审查。
 2. **结构化 Handover 契约**：子智能体之间在传递上下文或结束当前阶段汇报时，**必须输出结构化的 Handover 块**：
    ```markdown
    #### 🤝 [Agent Handover] <发送方角色> -> <接收方角色>
@@ -100,7 +115,10 @@ graph TD
 - **Spec 优先原则 (Single Source of Truth)**：任何在聊天中产生的新需求或逻辑变更，AI 必须首先去修改 `docs/specs/implementation_plan.md`，得到确认后再修改代码。绝不允许绕过设计文档直接在对话上下文里进行 Vibe Coding。
 - **未成功落盘前严禁提前在回复中声称更新 (No Premature Update Claims)**：凡是在自然语言中告知用户“已更新”、“已补充”、“已落盘”、“已修正”的任何文件变更，**必须在同一轮中先成功完成文件修改工具调用（`replace_file_content` / `write_to_file`），并经工具输出验证成功后，方可向用户声称完成！** 严禁任何“口头承诺已修改但实际未调用工具落盘”的行为缺陷。
 - **动作前置拦截 (Prompt Interception)**：当接收到构建新功能或修改已有代码的请求时，必须先检查设计资产是否存在且为最新。如果缺失，拒绝直接写代码，并主动生成实施方案。
-- **拒绝占位符**：AI 编写的代码必须是完整的、可直接投入生产环境运行的代码，严禁编写 `// TODO: add logic here` 或 `// 略...` 等不完整占位符。
+- **拒绝未完成占位符 vs 显式有界架构捷径 (`shortcut:`)**：
+  - **严禁未完成占位符**：AI 编写的代码必须是完整的、可直接投入生产环境运行的代码，严禁编写 `// TODO: add logic here` 或 `// 略...` 等半成品占位符。
+  - **强制显式标记有界捷径 (`shortcut:`)**：当在敏捷迭代或应急止血中有意采取具备已知容量、并发或场景上限的轻量级妥协方案（如用内存 Map 代替分布式缓存）时，必须在代码处留下标准格式注释：`// shortcut: <容量/并发上限阈值>, <何时触发重构升级>`（可用 `git grep -nE '(#|//|/[*]) ?shortcut:'` 随时盘点技术债台账）。
+- **盲区与残余风险末尾强制披露 (Residual Risk Disclosure)**：在每次代码变更、重构或排障回复的末尾，AI **必须用 1~2 行输出 `⚠️ 跳过项与残余风险`**，向用户诚实交代本次跳过了哪些非核心特性、哪些外部环境/边界尚未实测验证、以及上线需留意的潜在风险。
 - **链接化引用**：在向用户汇报或在文档中提及文件、类、接口时，必须输出可点击的本地文件链接，例如：[INSTRUCTIONS.md](file:///Users/hexianghong/code/ai-standards/core-rules/INSTRUCTIONS.md)。
 
 ## 4. AI 过程资产沉淀规范 (Persistent Artifacts & State Preservation)

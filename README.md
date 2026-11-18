@@ -16,7 +16,7 @@
         ┌───────────────────────────┼───────────────────────────┐
         ▼                           ▼                           ▼
   【1. SRE 与全栈规约】       【2. 故障排查 SOP】         【3. AI Skill & MCP】
-  • Linux 内核与参数调优规约  • PLEG 死锁诊断决策树       • 标准 SKILL.md 技能插件
+  • Linux 内核与参数调优规约  • PLEG 死锁诊断决策树       • 标准 SKILL.md 技能
   • CNI 容器与网络架构规约    • 502/504 链路止血 SOP      • K8s / MySQL / Git MCP
   • Operator 开发与 TDD 规约  • CPU 100% 故障应急响应     • repo-map 依赖图建立
 ```
@@ -34,7 +34,7 @@
   * `LEARNING.md`：错题本与自我进化机制规范。
 * **`stack-templates/`**：
   * 多技术栈研发规约模版（Go、Java、Vue3、React 等）。
-  * `skills/`：符合 Antigravity 规范的标准技能插件包（包含 `product-manager` 产品经理效能、`ops-troubleshooting` 故障排查决策树、`logging-standard` 结构化日志、`repo-map-analyzer` 等）。
+  * `skills/`：项目共享技能库，每项技能以 `SKILL.md` 为入口（包含 `product-manager` 产品经理效能、`ops-troubleshooting` 故障排查决策树、`logging-standard` 结构化日志、`repo-map-analyzer` 等）。
 * **`automation-tools/`**：
   * 自动化工具链：一键注入脚本 `init-project.sh`、代码大纲测绘器 `gen-repo-map.sh`、过程资产归档脚本 `archive-specs.sh` 以及知识库全文索引构建器 `index-knowledge.sh`。
 * **`GEMINI_GLOBAL.md`**：
@@ -115,13 +115,14 @@ ai-standards
 │   ├── backend-java-standard.md                 # Java 微服务规约
 │   ├── frontend-vue3-tailwind.md                # Vue3 前端规约
 │   ├── frontend-react-standard.md               # React 前端规约
-│   └── skills/                                  # 9 大标准 Agent 技能插件库
+│   └── skills/                                  # 项目共享技能库
+│       ├── code-review/SKILL.md                 # 全链路代码审查、仓库体检与技术债盘点
 │       ├── ops-troubleshooting/SKILL.md         # SRE 故障排查 SOP 决策树
 │       ├── logging-standard/SKILL.md            # 跨语言结构化日志标准
 │       ├── devops-shell/SKILL.md                # Shell 运维脚本安全规范
 │       ├── repo-map-analyzer/SKILL.md           # 符号大纲提取技能
 │       ├── macro-architecture-cartographer/     # C4 架构测绘技能
-│       └── backend-go / backend-java / ...      # 各语言栈技能
+│       └── backend-go / backend-java / ...      # 各语言栈与产品经理技能
 └── automation-tools/
     ├── init-project.sh                          # Antigravity 一键注入与联动脚本
     ├── gen-repo-map.sh                          # 多语言代码大纲与符号测绘脚本

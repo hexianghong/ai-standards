@@ -1800,14 +1800,41 @@ ${specificDirective}
       showToast('已终止生成', '⏹️');
     }
 
+    window.toggleThoughtCard = function(el) {
+      const card = el.closest('.thought-card');
+      if (!card) return;
+      const isExpanded = card.classList.toggle('expanded');
+      const body = card.querySelector('.thought-body');
+      if (body) {
+        body.style.display = isExpanded ? 'block' : 'none';
+      }
+    };
+
+    window.showWaitingDetail = function(startTime) {
+      const elapsed = startTime > 0 ? ((Date.now() - startTime) / 1000).toFixed(1) + 's' : '0.0s';
+      const hasKey = !!localStorage.getItem('gemini_api_key');
+      const model = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
+      showToast(`大模型正在构思业务推导（已耗时 ${elapsed}）。当前引擎: ${hasKey ? 'Google 云端 API' : 'Antigravity 原生 CLI'} (${model})。请稍候！`, '🧠');
+    };
+
     function renderMessageWithThinking(aiContentEl, rawText, isStreaming = false, startTime = 0) {
       if (!rawText || !rawText.trim()) {
-        const elapsed = startTime > 0 ? ((Date.now() - startTime) / 1000).toFixed(1) + 's' : '';
+        const elapsedSec = startTime > 0 ? ((Date.now() - startTime) / 1000).toFixed(1) : '0.0';
+        let statusHint = '正在深度思考规划思维链...';
+        const numSec = parseFloat(elapsedSec);
+        if (numSec >= 7) {
+          statusHint = '正在推演完整原型设计与交互边界...';
+        } else if (numSec >= 3) {
+          statusHint = '正在深度构思架构方案与业务逻辑...';
+        } else {
+          statusHint = '正在调度 AI 推理引擎并挂载角色规约...';
+        }
+
         aiContentEl.innerHTML = `
-          <div class="thought-waiting-bar">
+          <div class="thought-waiting-bar" onclick="showWaitingDetail(${startTime})" style="cursor:pointer;" title="大模型思考中，点击查看状态">
             <span class="thought-icon thinking">🧠</span>
-            <span>正在深度思考规划思维链...</span>
-            <span style="font-size:11px; opacity:0.8; margin-left:auto;">${elapsed}</span>
+            <span>${statusHint}</span>
+            <span style="font-size:11px; opacity:0.85; font-family:monospace; margin-left:auto;">${elapsedSec}s (思考中 ▾)</span>
           </div>
         `;
         return;
@@ -1828,19 +1855,19 @@ ${specificDirective}
 
         const thoughtCardHtml = `
           <div class="thought-card ${isStillThinking ? 'expanded' : ''}">
-            <div class="thought-header" onclick="this.parentElement.classList.toggle('expanded')">
+            <div class="thought-header" onclick="toggleThoughtCard(this)" style="cursor:pointer;">
               <span class="thought-icon ${isStillThinking ? 'thinking' : ''}">🧠</span>
               <span class="thought-title">深度思考推导过程</span>
-              <span class="thought-status">${isStillThinking ? `思考中 (${elapsedSec}s)...` : `已深度思考 (耗时 ${elapsedSec} 秒)`}</span>
+              <span class="thought-status">${isStillThinking ? `思考中 (${elapsedSec}s)...` : `已深度思考 (耗时 ${elapsedSec} 秒 · 点击展开/收起详情)`}</span>
               <span class="thought-arrow">▾</span>
             </div>
-            <div class="thought-body">
+            <div class="thought-body" style="${isStillThinking ? 'display:block;' : ''}">
               ${marked.parse(thoughtContent || '正在组织思考逻辑与推演方案...')}
             </div>
           </div>
         `;
 
-        const mainContentHtml = mainAnswer ? marked.parse(mainAnswer) : (isStillThinking ? '<div style="color:var(--text-dim); font-size:13px; padding:6px 0;">正在撰写正式产研交付方案...</div>' : '');
+        const mainContentHtml = mainAnswer ? marked.parse(mainAnswer) : (isStillThinking ? '<div style="color:var(--text-dim); font-size:13px; padding:6px 0;">✍️ 思考推演中，正在撰写正式产研交付方案...</div>' : '');
 
         aiContentEl.innerHTML = thoughtCardHtml + mainContentHtml;
       } else {
@@ -1878,6 +1905,14 @@ ${specificDirective}
       const startTime = Date.now();
       renderMessageWithThinking(aiContentEl, '', true, startTime);
 
+      let fullText = '';
+      // 实时动态秒数计时器，防止等待大模型首包时停留在 0.0s 产生死锁假象
+      const waitingTimer = setInterval(() => {
+        if (isGenerating && (!fullText || !fullText.trim())) {
+          renderMessageWithThinking(aiContentEl, '', true, startTime);
+        }
+      }, 100);
+
       try {
         const apiKey = localStorage.getItem('gemini_api_key') || '';
         const model = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
@@ -1885,6 +1920,8 @@ ${specificDirective}
 
         const activeRoleObj = state.allRoles.find(r => r.id === state.activeRoleId);
         const systemPrompt = activeRoleObj ? activeRoleObj.systemPrompt : '';
+
+        const thinkingConstraint = '\n\n【强制思考与输出格式规约】: 请务必首先在 <thought> 标签内进行深入、严密的业务思考与推导过程（深入分析需求要点、业务边界、架构权衡与演进路径），闭合 </thought> 后，再给出正式、专业的最终解答与方案。';
 
         const res = await fetch('/api/chat/stream', {
           method: 'POST',
@@ -1895,11 +1932,12 @@ ${specificDirective}
             model,
             baseUrl,
             systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
-            contents: [{ role: 'user', parts: [{ text }] }]
+            contents: [{ role: 'user', parts: [{ text: text + thinkingConstraint }] }]
           })
         });
 
         if (!res.ok) {
+          clearInterval(waitingTimer);
           const errData = await res.json().catch(() => ({}));
           aiContentEl.innerHTML = `<span style="color:var(--danger)">请求异常: ${errData.error?.message || res.statusText}</span>`;
           return;
@@ -1907,7 +1945,7 @@ ${specificDirective}
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder('utf-8');
-        let fullText = '';
+        let inThoughtBlock = false;
         let buffer = '';
 
         while (true) {
@@ -1923,24 +1961,79 @@ ${specificDirective}
               if (jsonStr === '[DONE]') continue;
               try {
                 const chunk = JSON.parse(jsonStr);
-                const partText = chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                fullText += partText;
+                // 异常统一拦截提示
+                if (chunk.error) {
+                  clearInterval(waitingTimer);
+                  aiContentEl.innerHTML = `<div style="padding:12px; border-radius:6px; background:rgba(239,68,68,0.1); border:1px solid var(--danger); color:var(--danger); font-size:13px; line-height:1.6;">
+                    <strong>❌ 推理服务返回异常:</strong><br>${chunk.error.message}
+                  </div>`;
+                  return;
+                }
+
+                // 兼容 1: Google Gemini 原生 candidates parts (含 thought: true)
+                const parts = chunk.candidates?.[0]?.content?.parts || [];
+                if (parts.length > 0) {
+                  for (const p of parts) {
+                    if (p.thought) {
+                      if (!inThoughtBlock) {
+                        inThoughtBlock = true;
+                        fullText += '<thought>\n';
+                      }
+                      fullText += p.text || '';
+                    } else if (p.text) {
+                      if (inThoughtBlock) {
+                        inThoughtBlock = false;
+                        fullText += '\n</thought>\n\n';
+                      }
+                      fullText += p.text;
+                    }
+                  }
+                } else if (chunk.choices?.[0]?.delta?.reasoning_content) {
+                  // 兼容 2: DeepSeek / OpenAI 思考流 reasoning_content
+                  const reasoning = chunk.choices[0].delta.reasoning_content;
+                  if (!inThoughtBlock) {
+                    inThoughtBlock = true;
+                    fullText += '<thought>\n';
+                  }
+                  fullText += reasoning;
+                } else if (chunk.choices?.[0]?.delta?.content) {
+                  // 兼容 3: DeepSeek / OpenAI 正文流
+                  if (inThoughtBlock) {
+                    inThoughtBlock = false;
+                    fullText += '\n</thought>\n\n';
+                  }
+                  fullText += chunk.choices[0].delta.content;
+                } else if (chunk.text) {
+                  // 兼容 4: 简单文本 chunk
+                  fullText += chunk.text;
+                }
+
+                if (fullText) {
+                  clearInterval(waitingTimer);
+                }
                 renderMessageWithThinking(aiContentEl, fullText, true, startTime);
               } catch (e) {}
             }
           }
+        }
+        clearInterval(waitingTimer);
+        // 若最后仍在 thought 块中，予以安全闭合
+        if (inThoughtBlock && !fullText.includes('</thought>')) {
+          fullText += '\n</thought>\n';
         }
         renderMessageWithThinking(aiContentEl, fullText, false, startTime);
         if (aiContentEl && aiContentEl.updateFinalText) {
           aiContentEl.updateFinalText(fullText);
         }
       } catch (err) {
+        clearInterval(waitingTimer);
         if (err.name === 'AbortError') {
           console.log('Chat generation aborted by user.');
         } else {
           aiContentEl.innerHTML = `<span style="color:var(--danger)">网络异常: ${err.message}</span>`;
         }
       } finally {
+        clearInterval(waitingTimer);
         isGenerating = false;
         btnSendChat.innerHTML = '发送';
         btnSendChat.style.background = '';
