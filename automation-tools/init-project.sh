@@ -8,6 +8,13 @@
 
 set -euo pipefail
 
+# 版本化离线接入保留旧调用入口。
+for argument in "$@"; do
+    if [[ "$argument" == "--bundle" ]]; then
+        exec node "$(dirname "${BASH_SOURCE[0]}")/manage-standards.js" install "$@"
+    fi
+done
+
 UPDATE_MODE=0
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -183,7 +190,16 @@ exclude_generated_files() {
     update_gitignore "/.agents/gemini-web-chat"
     update_gitignore "/.agents/tools"
     update_gitignore "/.agent"
-    update_gitignore "/docs/specs/"
+    update_gitignore "!/docs/specs/"
+    update_gitignore "/docs/specs/*"
+    update_gitignore "!/docs/specs/*/"
+    update_gitignore "/docs/specs/*/*"
+    update_gitignore "!/docs/specs/*/spec.md"
+    update_gitignore "!/docs/specs/*/implementation_plan.md"
+    update_gitignore "!/docs/specs/*/task.md"
+    update_gitignore "!/docs/specs/*/walkthrough.md"
+    update_gitignore "!/docs/specs/*/archive.md"
+    update_gitignore "/docs/specs/archive/"
     update_gitignore "/implementation_plan.md"
     update_gitignore "/task.md"
     update_gitignore "/walkthrough.md"
@@ -258,7 +274,7 @@ $(echo -e "$STACK_DOC_LINK")
 - **原生技能库**: 已通过 \`.agents/skills/\` 挂载全局 SRE 排障、日志规范与架构测绘技能。
 - **Web 效能工作台**: \`node .agents/gemini-web-chat/server.js\` (支持流式对话、敏捷看板、多角色热加载与文档自动持久化)
 - **本地自动化工具**: 已通过 \`.agents/tools/\` 挂载全局脚本工具集：
-  - 过程资产归档: \`./.agents/tools/archive-specs.sh <feature-name>\`
+  - 过程资产归档: \`./.agents/tools/archive-specs.sh docs/specs/<需求编号>-<名称>\`
   - 代码大纲测绘: \`./.agents/tools/gen-repo-map.sh .\`
   - 知识库全文索引: \`./.agents/tools/index-knowledge.sh docs\`
   - 看板终端推进: \`./.agents/tools/update-kanban.sh <task-id> <stage>\`
@@ -276,7 +292,7 @@ $(echo -e "$STACK_DOC_LINK")
 ## 6. AI 自我进化与全局反哺机制 (Lessons Learned & Global Feedback)
 - **本地长效记忆**: [LEARNING.md](./LEARNING.md)
   - *注意: 任何在此项目中被开发者纠正的代码规范或错误，AI 必须主动总结并写入该文件中，确保不再重复犯错。*
-- **全局优化反馈**: 会话内直接对 AI 说 `“反馈这个问题”` 或 `“/report-issue”`，AI 将自动把错误现场同步至全局优化池，由开发者统一制定规约与技能加固方案。
+- **全局优化反馈**: 会话内直接对 AI 说 \`“反馈这个问题”\` 或 \`“/report-issue”\`，AI 将自动把错误现场同步至全局优化池，由开发者统一制定规约与技能加固方案。
 EOF
     echo "  🔹 GEMINI.md 模板生成成功！"
 else
@@ -291,8 +307,12 @@ fi
 
 # 5. 自动建立 OpenAI Codex 适配软链接 (AGENTS.md -> GEMINI.md)
 if [ -f "GEMINI.md" ]; then
-    ln -sf GEMINI.md ./AGENTS.md
-    echo "  🔹 AGENTS.md -> GEMINI.md (OpenAI Codex 专享适配)"
+    if [ ! -e ./AGENTS.md ] && [ ! -L ./AGENTS.md ]; then
+        ln -s GEMINI.md ./AGENTS.md
+    elif [ ! -L ./AGENTS.md ] || [ "$(readlink ./AGENTS.md)" != "GEMINI.md" ]; then
+        echo "ℹ️  保留现有 AGENTS.md，请使用版本化安装器预检。"
+    fi
+    echo "  🔹 AGENTS.md 入口检查完成"
 fi
 
 # 6. 排除规则配置

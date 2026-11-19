@@ -1331,11 +1331,18 @@
       </div>
       <div class="modal-body">
         <div class="form-group">
+          <label for="setting-chat-provider">对话后端</label>
+          <select id="setting-chat-provider">
+            <option value="gemini">Gemini / Antigravity</option>
+            <option value="codex">本机 Codex CLI（使用已登录账号）</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Google Gemini API Key</label>
           <input type="password" id="setting-api-key" placeholder="AIzaSy...">
         </div>
         <div class="form-group">
-          <label>默认推理模型</label>
+          <label>Gemini 推理模型</label>
           <select id="setting-model">
             <option value="gemini-2.5-flash">gemini-2.5-flash (推荐: 极速高并发)</option>
             <option value="gemini-2.5-pro">gemini-2.5-pro (强推理)</option>
@@ -1343,7 +1350,7 @@
           </select>
         </div>
         <div class="form-group">
-          <label>API 基础地址</label>
+          <label>Gemini API 基础地址</label>
           <input type="text" id="setting-base-url" placeholder="https://generativelanguage.googleapis.com">
         </div>
       </div>
@@ -1593,11 +1600,13 @@
 
       const content = document.createElement('div');
       content.className = 'msg-content';
+      if (role === 'user') content.dataset.chatText = text;
       content.innerHTML = marked.parse(text);
       content.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
 
       content.updateFinalText = (finalText) => {
         msgText = finalText;
+        content.dataset.chatText = finalText;
       };
 
       bubble.appendChild(header);
@@ -1812,6 +1821,10 @@ ${specificDirective}
 
     window.showWaitingDetail = function(startTime) {
       const elapsed = startTime > 0 ? ((Date.now() - startTime) / 1000).toFixed(1) + 's' : '0.0s';
+      if (currentGeneratingBubble?.dataset.provider === 'codex') {
+        showToast(`正在等待本机 Codex 回复（已耗时 ${elapsed}）。`, '⏳');
+        return;
+      }
       const hasKey = !!localStorage.getItem('gemini_api_key');
       const model = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
       showToast(`大模型正在构思业务推导（已耗时 ${elapsed}）。当前引擎: ${hasKey ? 'Google 云端 API' : 'Antigravity 原生 CLI'} (${model})。请稍候！`, '🧠');
@@ -1820,6 +1833,10 @@ ${specificDirective}
     function renderMessageWithThinking(aiContentEl, rawText, isStreaming = false, startTime = 0) {
       if (!rawText || !rawText.trim()) {
         const elapsedSec = startTime > 0 ? ((Date.now() - startTime) / 1000).toFixed(1) : '0.0';
+        if (aiContentEl.closest('.msg-bubble')?.dataset.provider === 'codex') {
+          aiContentEl.textContent = `等待 Codex 回复… ${elapsedSec}s`;
+          return;
+        }
         let statusHint = '正在深度思考规划思维链...';
         const numSec = parseFloat(elapsedSec);
         if (numSec >= 7) {
@@ -1837,6 +1854,13 @@ ${specificDirective}
             <span style="font-size:11px; opacity:0.85; font-family:monospace; margin-left:auto;">${elapsedSec}s (思考中 ▾)</span>
           </div>
         `;
+        return;
+      }
+
+      if (aiContentEl.closest('.msg-bubble')?.dataset.provider === 'codex') {
+        aiContentEl.style.whiteSpace = 'pre-wrap';
+        aiContentEl.textContent = rawText;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
         return;
       }
 
@@ -1891,12 +1915,19 @@ ${specificDirective}
         chatInput.value = '';
       }
 
+      const provider = localStorage.getItem('chat_provider') || 'gemini';
+      const history = provider === 'codex'
+        ? Array.from(chatMessages.querySelectorAll('.msg-content[data-chat-text]'), el => ({
+          role: el.closest('.msg-user') ? 'user' : 'model', parts: [{ text: el.dataset.chatText }]
+        })).slice(appendUserBubble ? -12 : -13, appendUserBubble ? undefined : -1)
+        : [];
       if (appendUserBubble) {
         appendMessage('user', text);
       }
 
       const aiContentEl = appendMessage('ai', '正在思考中...');
       currentGeneratingBubble = aiContentEl.closest('.msg-bubble');
+      currentGeneratingBubble.dataset.provider = provider;
       isGenerating = true;
       btnSendChat.innerHTML = '⏹️ 停止';
       btnSendChat.style.background = 'var(--danger)';
@@ -1928,11 +1959,10 @@ ${specificDirective}
           headers: { 'Content-Type': 'application/json' },
           signal: currentChatAbortController.signal,
           body: JSON.stringify({
-            apiKey,
-            model,
-            baseUrl,
+            provider,
+            ...(provider === 'codex' ? {} : { apiKey, model, baseUrl }),
             systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
-            contents: [{ role: 'user', parts: [{ text: text + thinkingConstraint }] }]
+            contents: [...history, { role: 'user', parts: [{ text: provider === 'codex' ? text : text + thinkingConstraint }] }]
           })
         });
 
@@ -2623,27 +2653,29 @@ ${specificDirective}
       const id = document.getElementById('edit-task-id').value || 'task-' + Date.now().toString(36);
       if (!title) return alert('请先输入任务标题');
 
-      const template = `# 📐 需求设计与规格方案 (Implementation Spec)
+      if (!/^[a-zA-Z0-9_-]+$/.test(id)) return alert('任务编号只能包含字母、数字、下划线和连字符');
+
+      const template = `# ${title}
 
 ## 1. 需求背景与价值定位
 > ${document.getElementById('edit-task-summary').value.trim() || '明确业务目标与价值闭环'}
 
-## 2. 架构设计与交互契约
+## 2. 需求信息
 - **任务编号**: \`${id}\`
 - **任务标题**: **${title}**
 - **负责人**: ${document.getElementById('edit-task-assignee').value || '全栈开发专家'}
 
 ## 3. 验收标准与交付准出 (DoD)
-${document.getElementById('edit-task-dod').value.split('\n').filter(Boolean).map(d => `- [ ] ${d}`).join('\n')}
+${document.getElementById('edit-task-dod').value.split('\n').map(d => d.trim()).filter(Boolean).map((d, i) => `- AC-${String(i + 1).padStart(2, '0')} ${d}`).join('\n')}
 `;
-      const filename = `spec-${id}.md`;
       const res = await fetch('/api/docs/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename, content: template, subDir: 'specs' })
+        body: JSON.stringify({ filename: 'spec.md', content: template, subDir: `specs/${id}`, createOnly: true })
       });
       const data = await res.json();
       if (res.ok) {
+        document.getElementById('edit-task-id').value = id;
         document.getElementById('edit-task-doc-link').value = data.relPath;
         showToast(`已成功创建并绑定规格: ${data.relPath}`, '📐');
       } else {
@@ -2705,7 +2737,7 @@ ${document.getElementById('edit-task-dod').value.split('\n').filter(Boolean).map
         const res = await fetch('/api/roles');
         const data = await res.json();
         state.allRoles = data.allRoles || [];
-        state.activeRoleId = data.activeRoleId;
+        state.activeRoleId = sessionStorage.getItem('activeRoleId') || data.activeRoleId;
         const activeObj = state.allRoles.find(r => r.id === state.activeRoleId);
         if (activeObj) {
           state.activeRoleName = activeObj.name;
@@ -2762,9 +2794,10 @@ ${document.getElementById('edit-task-dod').value.split('\n').filter(Boolean).map
         const data = await res.json();
         if (res.ok) {
           state.activeRoleId = role.id;
+          sessionStorage.setItem('activeRoleId', role.id);
           state.activeRoleName = role.name;
           document.getElementById('chat-active-role-badge').textContent = `${role.icon || '🤖'} ${role.name}`;
-          showToast(`已成功将【${role.name}】激活并写入工作区 GEMINI.md`, '🚀');
+          showToast(`已成功将【${role.name}】应用于当前工作台会话`, '🚀');
           renderRoles();
         } else {
           alert('激活失败: ' + data.error?.message);
@@ -3306,6 +3339,7 @@ ${document.getElementById('edit-task-dod').value.split('\n').filter(Boolean).map
     // ==========================================
     const settingsModal = document.getElementById('settings-modal');
     document.getElementById('settings-btn').onclick = () => {
+      document.getElementById('setting-chat-provider').value = localStorage.getItem('chat_provider') || 'gemini';
       document.getElementById('setting-api-key').value = localStorage.getItem('gemini_api_key') || '';
       document.getElementById('setting-model').value = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
       document.getElementById('setting-base-url').value = localStorage.getItem('gemini_base_url') || '';
@@ -3314,6 +3348,7 @@ ${document.getElementById('edit-task-dod').value.split('\n').filter(Boolean).map
     document.getElementById('btn-close-settings').onclick = () => settingsModal.classList.remove('active');
     document.getElementById('btn-cancel-settings').onclick = () => settingsModal.classList.remove('active');
     document.getElementById('btn-save-settings').onclick = () => {
+      localStorage.setItem('chat_provider', document.getElementById('setting-chat-provider').value);
       localStorage.setItem('gemini_api_key', document.getElementById('setting-api-key').value.trim());
       localStorage.setItem('gemini_model', document.getElementById('setting-model').value);
       localStorage.setItem('gemini_base_url', document.getElementById('setting-base-url').value.trim());

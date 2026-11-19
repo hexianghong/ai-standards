@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 STANDARDS_DIR="$(dirname "$SCRIPT_DIR")"
 
 # 优先查找当前项目本地专属看板文件 (彻底实现跨项目看板数据隔离)
@@ -37,27 +37,33 @@ if [[ ! -f "${KANBAN_FILE}" ]]; then
 fi
 
 # Use node to update JSON cleanly
-node -e "
+node - "$KANBAN_FILE" "$TASK_ID" "$TARGET_STAGE" "$SUMMARY" "$SCRIPT_DIR/check-specs.js" <<'NODE'
 const fs = require('fs');
 const path = require('path');
-const filePath = '${KANBAN_FILE}';
+const [filePath, taskId, targetStage, summary, checker] = process.argv.slice(2);
+const { checkKanbanTransition } = require(checker);
 const tasks = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-const task = tasks.find(t => t.id === '${TASK_ID}');
+const task = tasks.find(t => t.id === taskId);
 if (!task) {
-  console.error('❌ 未找到任务 ID: ${TASK_ID}');
+  console.error('❌ 未找到任务 ID: ' + taskId);
+  process.exit(1);
+}
+const errors = checkKanbanTransition(process.cwd(), task.docLink, targetStage);
+if (errors.length) {
+  console.error(errors.join('；'));
   process.exit(1);
 }
 const oldStage = task.stage;
-task.stage = '${TARGET_STAGE}';
+task.stage = targetStage;
 task.updatedAt = new Date().toISOString();
-if ('${SUMMARY}') {
-  task.summary = '${SUMMARY}';
+if (summary) {
+  task.summary = summary;
 }
 
 // 闭环完成 (done) 阶段自动落地完成文档 (无需界面按钮，完全静默自动化)
-if ('${TARGET_STAGE}' === 'done') {
+if (targetStage === 'done') {
   try {
-    const wsRoot = '${PWD}';
+    const wsRoot = process.cwd();
     const docBase = fs.existsSync(path.join(wsRoot, 'doc')) ? path.join(wsRoot, 'doc') : path.join(wsRoot, 'docs');
     const compDir = path.join(docBase, 'completed');
     if (!fs.existsSync(compDir)) fs.mkdirSync(compDir, { recursive: true });
@@ -72,12 +78,12 @@ if ('${TARGET_STAGE}' === 'done') {
 
     const content = '# 🎉 敏捷研发任务闭环落地报告 (Completion Record)\n\n' +
       '## 1. 任务基本元信息 (Metadata)\n' +
-      '- **任务编号**: \`' + task.id + '\`\n' +
+      '- **任务编号**: `' + task.id + '`\n' +
       '- **任务标题**: **' + task.title + '**\n' +
-      '- **当前状态**: ✅ \`done\` (已闭环完成)\n' +
+      '- **当前状态**: ✅ `done` (已闭环完成)\n' +
       '- **主要负责人**: ' + (task.assignee || '全栈工程师') + '\n' +
-      '- **任务优先级**: \`' + (task.priority || 'P1') + '\`\n' +
-      '- **所属标签/模块**: \`' + (task.tag || '通用') + '\`\n' +
+      '- **任务优先级**: `' + (task.priority || 'P1') + '`\n' +
+      '- **所属标签/模块**: `' + (task.tag || '通用') + '`\n' +
       '- **创建时间**: ' + (task.createdAt || 'N/A') + '\n' +
       '- **闭环归档时间**: ' + task.updatedAt + priorDoc + '\n\n---\n\n' +
       '## 2. 需求背景与交付总结 (Summary)\n' +
@@ -85,7 +91,7 @@ if ('${TARGET_STAGE}' === 'done') {
       '## 3. 验收标准达成情况 (Definition of Done)\n' +
       dodItems + '\n\n---\n\n' +
       '## 4. 资产沉淀与长效追踪 (Traceability)\n' +
-      '- **自动归档路径**: \`' + relPath + '\`\n' +
+      '- **自动归档路径**: `' + relPath + '`\n' +
       '- **归档说明**: 本文档由敏捷看板任务流转至 done 闭环阶段时由系统自动静默落地。\n';
 
     fs.writeFileSync(fullPath, content, 'utf-8');
@@ -98,5 +104,5 @@ if ('${TARGET_STAGE}' === 'done') {
 }
 
 fs.writeFileSync(filePath, JSON.stringify(tasks, null, 2), 'utf-8');
-console.log('✅ 看板任务 [' + task.title + '] 状态已更新: ' + oldStage + ' -> ${TARGET_STAGE}');
-"
+console.log('✅ 看板任务 [' + task.title + '] 状态已更新: ' + oldStage + ' -> ' + targetStage);
+NODE

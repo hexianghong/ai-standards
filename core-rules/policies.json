@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "controls": [
+    {
+      "id": "SEC-001",
+      "ownerRole": "安全与身份负责人",
+      "scope": "凭据读取",
+      "enforcement": ["凭据系统", "工具身份", "客户端沙箱"],
+      "status": "pending-environment",
+      "evidence": [],
+      "documentation": "security-guardrails.md"
+    },
+    {
+      "id": "SEC-002",
+      "ownerRole": "生产系统负责人",
+      "scope": "生产写入",
+      "enforcement": ["服务端账号权限", "审批系统"],
+      "status": "pending-environment",
+      "evidence": [],
+      "documentation": "security-guardrails.md"
+    },
+    {
+      "id": "SEC-003",
+      "ownerRole": "数据与项目负责人",
+      "scope": "跨项目访问",
+      "enforcement": ["MCP 服务端项目授权", "文件权限"],
+      "status": "pending-environment",
+      "evidence": [],
+      "documentation": "security-guardrails.md"
+    }
+  ]
+}

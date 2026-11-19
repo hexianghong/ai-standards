@@ -1,8 +1,10 @@
-# 全局 AI 协同工程与 SRE 运维规则引擎 (ai-standards)
+# 公司级 AI 智能体总控规约与接入工具
 
-`ai-standards` 是一个专门为 **Google DeepMind Antigravity** 及现代 AI 智能体（AI IDE / Autonomous Agents）定制的**全局开发规范、SRE 运维规约与 SOP 引擎 (Full-Stack Engineering & SRE AI Rules Engine)**。
+本仓库面向公司多成员、多项目维护 AI 执行基线、任务技能、客户端适配与接入工具。平台维护发布和安装工具，安全负责人管理强制控制，领域负责人维护技术栈技能，项目团队维护业务上下文和验证命令。
 
-本引擎面向高级 **SRE（站点可靠性工程师）** 与 **全栈平台工程师**，通过单一事实来源（SSOT）、标准化控制指令、安全防护红线、SRE 故障排查 SOP 以及 Agent 动态自闭环工作流，赋予 AI 智能体生产级的架构防护能力与专家级排障思维。
+版本接入与诊断见 [客户端兼容与接入](adapters/compatibility.md)。规则治理见 [公司治理约定](core-rules/governance.md)。本次改造的验收状态见 [实施验证报告](docs/specs/company-agent-governance/walkthrough.md)。
+
+以下为已有软链接接入说明。多人项目优先使用上面的固定版本接入方式。
 
 ---
 

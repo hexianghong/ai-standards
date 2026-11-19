@@ -1,5 +1,7 @@
 # AI Standards 项目演进路线图与需求文档 (ROADMAP & REQUIREMENTS)
 
+公司级多人多项目改造按 [实施计划](docs/specs/company-agent-governance/implementation_plan.md)、[验收要求](docs/specs/company-agent-governance/spec.md) 和 [验证状态](docs/specs/company-agent-governance/walkthrough.md) 推进，旧软链接模式按兼容路径保留。
+
 本文档系统性地记录了 `ai-standards` 项目的发展规划。本项目定位为 **“AI 驱动的云原生全栈工程与 SRE 运维自动化引擎”**，核心服务于 **Antigravity** 智能体与高级 SRE/平台工程师的 Pair Programming 与 Agentic 工作流。
 
 ## 🎯 当前迭代目标：Agentic Workflow & SRE Engine Upgrade (v2.0)

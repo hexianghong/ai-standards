@@ -1,5 +1,7 @@
 # Top 10 AI Skills & Rules Repositories (Reference Repositories)
 
+公司治理设计参考 AGENTS.md 开放规范、OpenAI Harness Engineering、Codex 托管控制、GitHub Copilot 定制能力及 OPA 分发机制。来源与适用边界见 [公司级改造方案](docs/specs/company-agent-governance/implementation_plan.md#13-参考依据)。
+
 This document records the top 10 most popular open-source repositories for **AI Skills, Prompt Rules, and Agent Workflows** on GitHub. AI agents should treat this as a primary knowledge source and periodically revisit these repositories to absorb the latest AI programming standards and workflow advancements from the open-source community.
 
 ---

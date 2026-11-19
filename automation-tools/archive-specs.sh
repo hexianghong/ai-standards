@@ -1,25 +1,61 @@
 #!/bin/bash
+set -euo pipefail
 # ==============================================================================
 # 自动化工具: archive-specs.sh
 # 作用: 在 AI 功能开发完成并合并代码后，自动将过程资产 (implementation_plan.md & walkthrough.md)
 #       合并归档至 docs/specs/archive/YYYY-MM-DD-feature-name.md，保持项目目录整洁。
 # ==============================================================================
 
-set -euo pipefail
-
 FEATURE_NAME="${1:-}"
 PROJECT_DIR="${2:-.}"
 
 if [ -z "$FEATURE_NAME" ]; then
     echo "❌ 错误: 请指定功能名称标识 (Feature Name)。" >&2
-    echo "用法: $0 <feature-name> [project_directory]" >&2
-    echo "示例: $0 auth-jwt-refresh" >&2
+    echo "用法: $0 docs/specs/<需求编号>-<名称> [project_directory]" >&2
+    echo "旧版平铺归档: $0 <feature-name> [project_directory]" >&2
     exit 1
 fi
 
 abs_project_dir="$(cd "$PROJECT_DIR" && pwd)"
 SPECS_DIR="$abs_project_dir/docs/specs"
 ARCHIVE_DIR="$SPECS_DIR/archive"
+
+if [[ "$FEATURE_NAME" == */* ]]; then
+    if [[ ! "$FEATURE_NAME" =~ ^docs/specs/[a-zA-Z0-9_][a-zA-Z0-9_-]*$ || "$FEATURE_NAME" == 'docs/specs/archive' ]]; then
+        echo "无效的需求目录：$FEATURE_NAME" >&2
+        exit 1
+    fi
+    feature_dir="$(cd "$abs_project_dir/$FEATURE_NAME" && pwd -P)"
+    if [[ "$feature_dir" != "$(cd "$abs_project_dir" && pwd -P)/$FEATURE_NAME" ]]; then
+        echo "需求目录必须位于目标项目内，且使用实际目录。" >&2
+        exit 1
+    fi
+
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+    node "$script_dir/check-specs.js" done "$feature_dir"
+    archive_tmp="$(mktemp "$feature_dir/.archive.XXXXXX")"
+    trap 'rm -f -- "$archive_tmp"' EXIT
+    {
+        printf '# 过程资产归档 · %s\n' "${FEATURE_NAME##*/}"
+        for document in spec.md implementation_plan.md task.md walkthrough.md; do
+            printf '\n---\n\n## %s\n\n' "$document"
+            cat "$feature_dir/$document"
+            printf '\n'
+        done
+    } > "$archive_tmp"
+    if [[ -f "$feature_dir/archive.md" ]] && cmp -s "$archive_tmp" "$feature_dir/archive.md"; then
+        echo "归档已是最新：$FEATURE_NAME/archive.md"
+    else
+        mv -f -- "$archive_tmp" "$feature_dir/archive.md"
+        echo "归档成功：$FEATURE_NAME/archive.md"
+    fi
+    exit 0
+fi
+
+if [[ ! "$FEATURE_NAME" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_-]*$ ]]; then
+    echo "无效的旧版归档名称：$FEATURE_NAME" >&2
+    exit 1
+fi
 
 PLAN_FILE="$SPECS_DIR/implementation_plan.md"
 WALKTHROUGH_FILE="$SPECS_DIR/walkthrough.md"

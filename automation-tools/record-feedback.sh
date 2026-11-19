@@ -13,6 +13,12 @@ FEEDBACK_DIR="${STANDARDS_DIR}/feedback"
 INBOX_DIR="${FEEDBACK_DIR}/inbox"
 KANBAN_FILE="${FEEDBACK_DIR}/FEEDBACK_KANBAN.md"
 
+DRAFT_MODE=0
+if [ "${1:-}" = "--draft" ]; then
+    DRAFT_MODE=1
+    shift
+    INBOX_DIR="$(pwd -P)/.agents/state/feedback"
+fi
 mkdir -p "$INBOX_DIR"
 
 PROJECT_NAME="${1:-$(basename "$(pwd)")}"
@@ -24,6 +30,15 @@ if [ -z "$SUMMARY" ]; then
     echo "❌ 错误: 必须提供错误简述 (Summary)"
     echo "用法: $0 <项目名> <错误分类> <简要描述> [详情Markdown临时文件路径]"
     exit 1
+fi
+
+case "$PROJECT_NAME" in
+    *"/"*|*'\'*|*$'\n'*) echo "项目名不能包含路径分隔符或换行" >&2; exit 1 ;;
+esac
+
+RULE_VERSION="未安装固定版本"
+if [ -f ".agents/standards.lock.json" ] && command -v node >/dev/null 2>&1; then
+    RULE_VERSION="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(".agents/standards.lock.json","utf8")).version)')"
 fi
 
 DATE_STR="$(date +%Y-%m-%d)"
@@ -51,6 +66,7 @@ else
 - **上报时间**: ${TIME_STR}
 - **来源项目**: \`${PROJECT_NAME}\`
 - **项目路径**: \`$(pwd -P)\`
+- **规约版本**: \`${RULE_VERSION}\`
 - **主要技术栈**: 通用
 - **错误分类**: \`${CATEGORY}\`
 - **当前处理状态**: \`待评估\`
@@ -81,6 +97,11 @@ ${SUMMARY}
 - **根因定位**: 待评估
 - **优化与改进方案**: 待制定
 EOF
+fi
+
+if [ "$DRAFT_MODE" -eq 1 ]; then
+    echo "反馈草稿已生成，请检查并脱敏后按用户授权上报: $TARGET_FILE"
+    exit 0
 fi
 
 # 更新看板表格

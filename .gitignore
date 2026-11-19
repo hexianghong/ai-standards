@@ -1,7 +1,15 @@
 /GEMINI_GLOBAL.md
-/AGENTS.md
 /.agents/skills
-/docs/specs/
+!/docs/specs/
+/docs/specs/*
+!/docs/specs/*/
+/docs/specs/*/*
+!/docs/specs/*/spec.md
+!/docs/specs/*/implementation_plan.md
+!/docs/specs/*/task.md
+!/docs/specs/*/walkthrough.md
+!/docs/specs/*/archive.md
+/docs/specs/archive/
 /implementation_plan.md
 /walkthrough.md
 *.env
@@ -12,3 +20,7 @@
 /.agents/tools
 /.agent
 /task.md
+
+/.agents/state/
+/.agents/standards/
+/dist/

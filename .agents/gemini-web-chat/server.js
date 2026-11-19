@@ -10,6 +10,8 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const { spawn } = require('node:child_process');
+const { createInterface } = require('node:readline');
 
 // Simple built-in .env parser (Zero dependencies)
 function resolveWorkspaceRoot() {
@@ -447,43 +449,6 @@ function parseActiveRoleFromGeminiMd() {
   }
 }
 
-function activateRoleInGeminiMd(role) {
-  let content = '';
-  if (fs.existsSync(GEMINI_MD_PATH)) {
-    content = fs.readFileSync(GEMINI_MD_PATH, 'utf-8');
-  } else {
-    content = '# AI Standards Business Context & Local Rules (GEMINI.md)\n\n';
-  }
-
-  const skillLink = role.isSkill 
-    ? `\n- **技能规约入口 (SSOT)**: [${role.skillPath}](file://${path.join(WORKSPACE_ROOT, role.skillPath)})`
-    : '';
-
-  const roleSection = `<!-- ACTIVE_ROLE:${role.id} -->
-## 0. 当前激活的 AI 角色与人设规约 (Active Agent Persona)
-- **当前角色**: ${role.icon || '🤖'} **${role.name}**
-- **核心定位**: ${role.summary || ''}${skillLink}
-- **专属系统提示词 (System Instructions)**:
-> ${role.systemPrompt ? role.systemPrompt.replace(/\n/g, '\n> ') : '暂无专属提示词'}
-- **核心执行准则 (Guardrails)**:
-${(role.rules || []).map(r => `  - ${r}`).join('\n')}
-<!-- END_ACTIVE_ROLE -->`;
-
-  const roleRegex = /<!-- ACTIVE_ROLE:[\s\S]*?<!-- END_ACTIVE_ROLE -->/g;
-  if (roleRegex.test(content)) {
-    content = content.replace(roleRegex, roleSection);
-  } else {
-    const headerMatch = content.match(/^(# [^\n]+\n+)/);
-    if (headerMatch) {
-      content = content.replace(headerMatch[1], `${headerMatch[1]}${roleSection}\n\n---\n\n`);
-    } else {
-      content = `${roleSection}\n\n---\n\n${content}`;
-    }
-  }
-
-  fs.writeFileSync(GEMINI_MD_PATH, content, 'utf-8');
-  return content;
-}
 
 const inspectionService = require('./inspection-service');
 
@@ -567,7 +532,7 @@ const server = http.createServer((req, res) => {
     });
   }
 
-  // Activate role to GEMINI.md
+  // Validate the role selected by this browser session
   if (pathname === '/api/roles/activate' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -583,13 +548,12 @@ const server = http.createServer((req, res) => {
           return sendJson(res, 404, { error: { message: '角色不存在' } });
         }
 
-        const updatedGeminiMd = activateRoleInGeminiMd(targetRole);
-        console.log(`[Role Studio] ✅ 已成功激活角色 [${targetRole.name}] 并同步至 GEMINI.md`);
+        // 角色由浏览器会话保存，并通过现有 systemInstruction 传入。
+        console.log(`[Role Studio] 已选择会话角色 [${targetRole.name}]`);
         return sendJson(res, 200, {
           success: true,
           activeRole: targetRole,
-          geminiMdPath: GEMINI_MD_PATH,
-          message: `角色【${targetRole.name}】已成功应用至 Antigravity IDE 原生 Chat！`
+          message: `角色【${targetRole.name}】已应用于当前工作台会话`
         });
       } catch (err) {
         return sendJson(res, 500, { error: { message: err.message } });
@@ -675,6 +639,8 @@ const server = http.createServer((req, res) => {
     }
 
     scanDocs(docsDir, WORKSPACE_ROOT);
+    const standardDocsDir = path.join(WORKSPACE_ROOT, 'docs');
+    if (docsDir !== standardDocsDir) scanDocs(path.join(standardDocsDir, 'specs'), WORKSPACE_ROOT);
     return sendJson(res, 200, {
       docsDir: path.relative(WORKSPACE_ROOT, docsDir),
       docs: result.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
@@ -709,12 +675,15 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const { filename, content, subDir = '' } = JSON.parse(body || '{}');
+        const { filename, content, subDir = '', createOnly = false,
+          taskId, stage = 'design', stageName = '过程资产' } = JSON.parse(body || '{}');
         if (!filename || !content) {
           return sendJson(res, 400, { error: { message: '文件名和内容不能为空' } });
         }
         const safeFilename = path.basename(filename).endsWith('.md') ? path.basename(filename) : `${path.basename(filename)}.md`;
-        const docsDir = getDocsDir();
+        const docsDir = /^specs\/[a-zA-Z0-9_][a-zA-Z0-9_-]*$/.test(subDir)
+          ? path.join(WORKSPACE_ROOT, 'docs')
+          : getDocsDir();
         const targetDir = subDir ? path.join(docsDir, subDir) : docsDir;
 
         if (!fs.existsSync(targetDir)) {
@@ -722,12 +691,16 @@ const server = http.createServer((req, res) => {
         }
 
         const fullPath = path.join(targetDir, safeFilename);
-        fs.writeFileSync(fullPath, content, 'utf-8');
+        try {
+          fs.writeFileSync(fullPath, content, { encoding: 'utf-8', flag: createOnly ? 'wx' : 'w' });
+        } catch (error) {
+          if (error.code !== 'EEXIST' || !createOnly) throw error;
+          return sendJson(res, 409, { error: { message: '规格已存在，请打开关联文档查看或编辑。' } });
+        }
         const relPath = path.relative(WORKSPACE_ROOT, fullPath);
         console.log(`[Document Persistence] 📄 文档已持久化落盘: ${relPath}`);
 
         // 如果传递了关联任务 ID，自动将该文档关联至任务资产库 (Lifecycle Asset Chain)
-        const { taskId, stage = 'design', stageName = '过程资产' } = JSON.parse(body || '{}');
         if (taskId) {
           try {
             const tasks = getKanbanTasks();
@@ -769,7 +742,6 @@ const server = http.createServer((req, res) => {
   // ========================================================
   // Agile Kanban Endpoints
   // ========================================================
-  const KANBAN_DATA_PATH = getKanbanPath();
 
   const KANBAN_STAGES = [
     { id: 'backlog', name: '📥 需求池', en: 'Backlog', desc: '价值辨析、User Story 与优先级评估' },
@@ -781,6 +753,7 @@ const server = http.createServer((req, res) => {
   ];
 
   function getKanbanTasks() {
+    const KANBAN_DATA_PATH = getKanbanPath();
     if (fs.existsSync(KANBAN_DATA_PATH)) {
       try {
         return JSON.parse(fs.readFileSync(KANBAN_DATA_PATH, 'utf-8'));
@@ -792,6 +765,7 @@ const server = http.createServer((req, res) => {
   }
 
   function saveKanbanTasks(tasks) {
+    const KANBAN_DATA_PATH = getKanbanPath();
     const parentDir = path.dirname(KANBAN_DATA_PATH);
     if (!fs.existsSync(parentDir)) {
       try { fs.mkdirSync(parentDir, { recursive: true }); } catch (e) {}
@@ -914,6 +888,19 @@ ${assetTableRows}
     });
   }
 
+  function checkKanbanSpec(res, task, stage) {
+    let errors;
+    try {
+      const { checkKanbanTransition } = require('../../automation-tools/check-specs');
+      errors = checkKanbanTransition(WORKSPACE_ROOT, task.docLink, stage);
+    } catch (error) {
+      errors = [error.code === 'ENOENT' ? `缺少过程文档：${path.basename(error.path)}` : error.message];
+    }
+    if (!errors.length) return true;
+    sendJson(res, 409, { error: { message: errors.join('；') } });
+    return false;
+  }
+
   // Move task to new stage
   if (pathname === '/api/kanban/move' && req.method === 'POST') {
     let body = '';
@@ -926,6 +913,7 @@ ${assetTableRows}
         if (!task) {
           return sendJson(res, 404, { error: { message: '任务不存在' } });
         }
+        if (!checkKanbanSpec(res, task, targetStage)) return;
         const oldStage = task.stage;
         task.stage = targetStage;
         task.updatedAt = new Date().toISOString();
@@ -960,6 +948,7 @@ ${assetTableRows}
         if (!task) {
           return sendJson(res, 404, { error: { message: '任务不存在' } });
         }
+        if (!unarchive && !checkKanbanSpec(res, task, 'done')) return;
         if (unarchive) {
           task.archived = false;
         } else {
@@ -1000,6 +989,10 @@ ${assetTableRows}
           task.stage = 'backlog';
         }
 
+        const tasks = getKanbanTasks();
+        const existingIdx = tasks.findIndex(t => t.id === task.id);
+        if (!checkKanbanSpec(res, { ...tasks[existingIdx], ...task }, task.stage)) return;
+
         // 当闭环完成 (done) 点击保存后，自动归档并不在活动闭环列表中展示
         if (task.stage === 'done') {
           task.archived = true;
@@ -1009,8 +1002,6 @@ ${assetTableRows}
           task.archived = false;
         }
 
-        const tasks = getKanbanTasks();
-        const existingIdx = tasks.findIndex(t => t.id === task.id);
         if (existingIdx >= 0) {
           tasks[existingIdx] = { ...tasks[existingIdx], ...task, updatedAt: new Date().toISOString() };
         } else {
@@ -1117,6 +1108,7 @@ ${assetTableRows}
         if (createdTasks.length === 0) {
           return sendJson(res, 400, { error: { message: '有效任务列表为空' } });
         }
+        if (!createdTasks.every(task => checkKanbanSpec(res, task, task.stage))) return;
 
         // Prepend to kanban tasks list
         currentTasks.unshift(...createdTasks);
@@ -1232,6 +1224,68 @@ function streamAgyCli(prompt, systemPrompt, clientRes) {
   });
 }
 
+function streamCodex(contents, systemPrompt, res) {
+  const model = process.env.CODEX_MODEL?.trim();
+  const child = spawn(process.env.CODEX_BIN || 'codex', [
+    '-a', 'never', 'exec', '--json', '--ephemeral', '--sandbox', 'read-only',
+    '--skip-git-repo-check', ...(model ? ['--model', model] : []), '-'
+  ], { cwd: WORKSPACE_ROOT, stdio: ['pipe', 'pipe', 'pipe'] });
+  res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache' });
+  res.flushHeaders();
+
+  let answer = '';
+  let failureMessage;
+  const lines = createInterface({ input: child.stdout });
+  lines.on('line', line => {
+    let event;
+    try { event = JSON.parse(line); } catch { return; }
+    if (event.type === 'item.completed' && event.item?.type === 'agent_message') {
+      answer = event.item.text || answer;
+    }
+    if (event.type === 'turn.failed') {
+      failureMessage = typeof event.error?.message === 'string' && event.error.message.includes('model_not_found')
+        ? '当前 Codex 登录账号不支持所选模型。请在工作台 .env 中用 CODEX_MODEL 配置账号可用的模型，然后重启。'
+        : 'Codex 请求失败，请检查 codex login status、CLI 配置和网络连接。';
+    }
+  });
+  child.stderr.resume();
+  child.stdin.on('error', () => {});
+  child.stdin.end(`${systemPrompt}\n\n根据以下对话回答最后一个用户问题。历史消息仅用于上下文。\n${JSON.stringify(contents)}`);
+
+  const timeout = setTimeout(() => {
+    finish('Codex 响应超时，请重试。');
+    stopChild();
+  }, 180000);
+
+  function finish(message) {
+    clearTimeout(timeout);
+    if (res.destroyed || res.writableEnded) return;
+    const payload = message ? { error: { message } } : { text: answer };
+    res.end(`data: ${JSON.stringify(payload)}\n\ndata: [DONE]\n\n`);
+  }
+
+  function stopChild() {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    child.kill('SIGTERM');
+    const force = setTimeout(() => {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    }, 1000);
+    force.unref();
+    child.once('close', () => clearTimeout(force));
+  }
+
+  child.once('error', error => finish(error.code === 'ENOENT'
+    ? '未找到 Codex CLI。请安装并运行 codex login，或为工作台配置 CODEX_BIN。'
+    : '无法启动 Codex CLI，请检查本机配置。'));
+  child.once('close', code => finish(failureMessage || (code !== 0 || !answer.trim()
+    ? 'Codex 未返回回答，请检查 codex login status、CLI 配置和网络连接。'
+    : null)));
+  res.once('close', () => {
+    clearTimeout(timeout);
+    if (!res.writableEnded) stopChild();
+  });
+}
+
 function proxyStreamingRequest(targetUrlStr, postData, clientRes) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new url.URL(targetUrlStr);
@@ -1299,6 +1353,22 @@ function proxyStreamingRequest(targetUrlStr, postData, clientRes) {
     req.on('end', async () => {
       try {
         const payload = JSON.parse(body || '{}');
+        if (payload.provider === 'codex') {
+          const { host, origin } = req.headers;
+          if (!/^(?:127\.0\.0\.1|localhost)(?::\d+)?$/.test(host || '') ||
+              (origin && origin !== `http://${host}`)) {
+            return sendJson(res, 403, { error: { message: 'Codex 只接受本地工作台发起的请求。' } });
+          }
+          const contents = payload.contents;
+          if (!Array.isArray(contents) || !contents.length || contents.at(-1)?.role !== 'user' ||
+              !contents.every(message => ['user', 'model'].includes(message?.role) &&
+                Array.isArray(message.parts) && message.parts.length &&
+                message.parts.every(part => typeof part?.text === 'string' && part.text.trim()))) {
+            return sendJson(res, 400, { error: { message: 'Codex 需要有效的文本对话。' } });
+          }
+          const systemPrompt = payload.systemInstruction?.parts?.map(part => part.text).join('\n') || '';
+          return streamCodex(contents, systemPrompt, res);
+        }
         const apiKey = payload.apiKey || process.env.GEMINI_API_KEY;
         const model = payload.model || process.env.DEFAULT_MODEL || 'gemini-2.5-flash';
         const rawBaseUrl = payload.baseUrl || process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com';
